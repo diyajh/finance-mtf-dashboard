@@ -1,6 +1,28 @@
-.page {
-  padding: 30px;
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
+
+body {
+  font-family: Arial, sans-serif;
+  background: #f4f8fb;
+  color: #1f2e7a;
+}
+
+.page {
+  padding: 32px;
+}
+
+/* Headings */
+
+h1,
+h2,
+h3 {
+  color: #1f2e7a;
+}
+
+/* Metric Cards */
 
 .metric-grid {
   display: grid;
@@ -10,9 +32,11 @@
 }
 
 .metric-card {
-  border: 1px solid #e5e5e5;
+  background: white;
+  border: 1px solid #d8eaf5;
+  border-radius: 12px;
   padding: 20px;
-  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(31, 46, 122, 0.06);
 }
 
 .metric-card p {
@@ -24,13 +48,18 @@
   font-size: 24px;
 }
 
+/* Profit / Loss Colors */
+
 .green {
-  color: green;
+  color: #16a34a;
 }
 
 .red {
-  color: red;
+  color: #dc2626;
 }
+
+/* Top Stocks Section */
+
 .stocks-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -39,10 +68,11 @@
 }
 
 .stock-card {
-  border: 1px solid #e5e5e5;
-  border-radius: 10px;
-  padding: 20px;
   background: white;
+  border: 1px solid #d8eaf5;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(31, 46, 122, 0.06);
 }
 
 .stock-card h3 {
@@ -50,9 +80,12 @@
 }
 
 .stock-card p {
-  margin-bottom: 8px;
   color: #666;
+  margin-bottom: 10px;
 }
+
+/* Table Section */
+
 .table-section {
   margin-top: 40px;
 }
@@ -65,40 +98,46 @@
 
 .tabs button {
   padding: 10px 18px;
-  border: 1px solid #e5e5e5;
+  border: 1px solid #d8eaf5;
   background: white;
+  color: #1f2e7a;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 14px;
-}
-
-.tabs .active-tab {
-  border-color: #0b74ff;
-  color: #0b74ff;
   font-weight: 600;
 }
+
+.tabs button:hover {
+  background: #eaf6fc;
+}
+
+.active-tab {
+  background: #1d75bc !important;
+  color: white !important;
+  border-color: #1d75bc !important;
+}
+
+/* Table */
 
 .mtf-table {
   width: 100%;
   border-collapse: collapse;
-  border: 1px solid #eee;
-  border-radius: 10px;
-  overflow: hidden;
   background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(31, 46, 122, 0.06);
 }
 
 .mtf-table th {
+  background: #eaf6fc;
+  color: #1f2e7a;
   text-align: left;
-  background: #fafafa;
-  color: #666;
-  font-weight: 600;
   padding: 14px;
-  border-bottom: 1px solid #eee;
+  font-weight: 600;
 }
 
 .mtf-table td {
   padding: 16px 14px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid #edf3f7;
 }
 
 .mtf-table tr:hover {
@@ -106,6 +145,111 @@
 }
 
 .margin-value {
-  color: #ff8a00;
+  color: #35a8e0;
+  font-weight: bold;
+}
+
+/* Upload Page */
+
+.back-button {
+  margin-bottom: 24px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: 1px solid #d8eaf5;
+  background: white;
+  color: #1f2e7a;
+  cursor: pointer;
   font-weight: 600;
+}
+
+.back-button:hover {
+  background: #eaf6fc;
+}
+
+.upload-subtitle {
+  color: #666;
+  margin-bottom: 28px;
+}
+
+.upload-box {
+  border: 2px dashed #35a8e0;
+  background: #eaf6fc;
+  height: 260px;
+  max-width: 620px;
+  border-radius: 12px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.upload-icon {
+  font-size: 48px;
+  color: #1d75bc;
+  margin-bottom: 12px;
+}
+
+.upload-box h2 {
+  margin-bottom: 8px;
+}
+
+.upload-box p {
+  color: #666;
+  margin-bottom: 20px;
+}
+
+.browse-button {
+  padding: 10px 18px;
+  border-radius: 8px;
+  background: #1d75bc;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+}
+
+.browse-button:hover {
+  background: #16639d;
+}
+
+/* Search Box */
+
+input[type="text"] {
+  padding: 10px;
+  width: 250px;
+  border: 1px solid #d8eaf5;
+  border-radius: 8px;
+  outline: none;
+}
+
+input[type="text"]:focus {
+  border-color: #1d75bc;
+}
+.upload-btn {
+  background: #2c5aa0;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.upload-btn:hover {
+  background: #1f4b91;
+}
+
+.cancel-btn {
+  background: white;
+  color: #2c5aa0;
+  border: 1px solid #2c5aa0;
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.cancel-btn:hover {
+  background: #f5f8ff;
 }
