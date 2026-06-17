@@ -4,3 +4,57 @@ export const metrics = {
     positionsLiquidated: "₹6,467 Cr",
     netBook: "₹63 Cr",
   };
+  export const topStocks = [
+    { name: "HDFC Bank", price: "₹784.90", fundedValue: "₹2,160.46 Cr", shares: "2,64,68,100" },
+    { name: "Reliance Industries", price: "₹1,328.80", fundedValue: "₹1,992.17 Cr", shares: "1,46,04,439" },
+    { name: "Tata Consultancy Services", price: "₹2,199.00", fundedValue: "₹1,501.74 Cr", shares: "58,76,202" },
+    { name: "Jio Financial Services", price: "₹241.95", fundedValue: "₹1,479.24 Cr", shares: "5,51,27,408" },
+    { name: "ITC", price: "₹291.65", fundedValue: "₹1,352.83 Cr", shares: "4,21,99,460" },
+  ];
+  export const mtfRows = [
+    {
+      company: "HDFC Bank",
+      fundedQty: "2,64,68,100",
+      fundedAmount: "2,160.46",
+      exposure: "1.69%",
+      ltp: "784.90",
+      priceWithMtf: "172.68",
+      margin: "4.55x",
+    },
+    {
+      company: "Reliance Industries",
+      fundedQty: "1,46,04,439",
+      fundedAmount: "1,992.17",
+      exposure: "1.56%",
+      ltp: "1,328.80",
+      priceWithMtf: "292.34",
+      margin: "4.55x",
+    },
+    {
+      company: "Tata Consultancy Services",
+      fundedQty: "58,76,202",
+      fundedAmount: "1,501.74",
+      exposure: "1.17%",
+      ltp: "2,199.00",
+      priceWithMtf: "483.78",
+      margin: "4.55x",
+    },
+    {
+      company: "Jio Financial Services",
+      fundedQty: "5,51,27,408",
+      fundedAmount: "1,479.24",
+      exposure: "1.16%",
+      ltp: "241.95",
+      priceWithMtf: "55.65",
+      margin: "4.35x",
+    },
+    {
+      company: "ITC",
+      fundedQty: "4,21,99,460",
+      fundedAmount: "1,352.83",
+      exposure: "1.06%",
+      ltp: "291.65",
+      priceWithMtf: "64.16",
+      margin: "4.55x",
+    },
+  ];
