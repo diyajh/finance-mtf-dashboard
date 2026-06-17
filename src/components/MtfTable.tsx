@@ -1,6 +1,14 @@
 import { mtfRows } from "../data/sampleData";
 
-function MtfTable() {
+type MtfTableProps = {
+  searchTerm: string;
+};
+
+function MtfTable({ searchTerm }: MtfTableProps) {
+  const filteredRows = mtfRows.filter((row) =>
+    row.company.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div className="table-section">
       <div className="tabs">
@@ -23,7 +31,7 @@ function MtfTable() {
         </thead>
 
         <tbody>
-          {mtfRows.map((row) => (
+          {filteredRows.map((row) => (
             <tr key={row.company}>
               <td>{row.company}</td>
               <td>{row.fundedQty}</td>

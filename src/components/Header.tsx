@@ -1,4 +1,10 @@
-function Header() {
+type HeaderProps = {
+  searchTerm: string;
+  setSearchTerm: (value: string) => void;
+};
+
+function Header(props: HeaderProps) {
+  const { searchTerm, setSearchTerm } = props;
     return (
       <div
         style={{
@@ -13,12 +19,14 @@ function Header() {
         <input
           type="text"
           placeholder="Search stock..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
           style={{
-            padding: "10px",
-            width: "250px",
-            borderRadius: "8px",
-          }}
-        />
+          padding: "10px",
+          width: "250px",
+          borderRadius: "8px",
+        }}
+      />
       </div>
     );
   }
