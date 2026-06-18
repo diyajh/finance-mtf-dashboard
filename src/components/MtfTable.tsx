@@ -1,11 +1,25 @@
-import { mtfRows } from "../data/sampleData";
+import type { DashboardRow } from "../services/dashboardService";
 
 type MtfTableProps = {
+  rows: DashboardRow[];
   searchTerm: string;
 };
 
-function MtfTable({ searchTerm }: MtfTableProps) {
-  const filteredRows = mtfRows.filter((row) =>
+function formatNumber(value: number | null) {
+  if (value === null) return "-";
+
+  return value.toLocaleString("en-IN", {
+    maximumFractionDigits: 2,
+  });
+}
+
+function formatPercent(value: number | null) {
+  if (value === null) return "-";
+  return `${value}%`;
+}
+
+function MtfTable({ rows, searchTerm }: MtfTableProps) {
+  const filteredRows = rows.filter((row) =>
     row.company.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -34,12 +48,12 @@ function MtfTable({ searchTerm }: MtfTableProps) {
           {filteredRows.map((row) => (
             <tr key={row.company}>
               <td>{row.company}</td>
-              <td>{row.fundedQty}</td>
-              <td>{row.fundedAmount}</td>
-              <td>{row.exposure}</td>
-              <td>{row.ltp}</td>
-              <td>{row.priceWithMtf}</td>
-              <td className="margin-value">{row.margin}</td>
+              <td>{formatNumber(row.fundedQty)}</td>
+              <td>{formatNumber(row.fundedAmount)}</td>
+              <td>{formatPercent(row.exposure)}</td>
+              <td>{formatNumber(row.ltp)}</td>
+              <td>{formatNumber(row.priceWithMtf)}</td>
+              <td className="margin-value">{formatNumber(row.margin)}</td>
             </tr>
           ))}
         </tbody>

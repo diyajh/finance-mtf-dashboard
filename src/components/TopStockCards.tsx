@@ -1,6 +1,24 @@
-import { topStocks } from "../data/sampleData";
+import type { DashboardRow } from "../services/dashboardService";
 
-function TopStockCards() {
+type TopStockCardsProps = {
+  rows: DashboardRow[];
+};
+
+function formatCr(value: number | null) {
+  if (value === null) return "-";
+
+  return `₹${value.toLocaleString("en-IN", {
+    maximumFractionDigits: 2,
+  })} Cr`;
+}
+
+function formatQty(value: number | null) {
+  if (value === null) return "-";
+
+  return value.toLocaleString("en-IN");
+}
+
+function TopStockCards({ rows }: TopStockCardsProps) {
   return (
     <div>
       <h2 style={{ marginTop: "40px", marginBottom: "20px" }}>
@@ -8,12 +26,11 @@ function TopStockCards() {
       </h2>
 
       <div className="stocks-grid">
-        {topStocks.map((stock) => (
-          <div className="stock-card" key={stock.name}>
-            <h3>{stock.name}</h3>
-            <p>Price: {stock.price}</p>
-            <p>Funded Value: {stock.fundedValue}</p>
-            <p>Shares: {stock.shares}</p>
+        {rows.map((stock) => (
+          <div className="stock-card" key={stock.company}>
+            <h3>{stock.company}</h3>
+            <p>Funded Value: {formatCr(stock.fundedAmount)}</p>
+            <p>Shares: {formatQty(stock.fundedQty)}</p>
           </div>
         ))}
       </div>
