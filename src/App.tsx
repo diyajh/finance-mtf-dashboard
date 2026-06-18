@@ -6,7 +6,7 @@ import MetricCards from "./components/MetricCards";
 import TopStockCards from "./components/TopStockCards";
 import MtfTable from "./components/MtfTable";
 import UploadPage from "./components/UploadPage";
-
+import TestSupabase from "./components/TestSupabase";
 function App() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState("dashboard");
@@ -24,9 +24,11 @@ function App() {
       />
 
       <MetricCards />
+      <TestSupabase />
       <TopStockCards />
       <MtfTable searchTerm={searchTerm} />
     </div>
+    
   );
 }
 
