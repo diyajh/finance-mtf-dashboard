@@ -27,7 +27,6 @@ export async function getLatestDashboardData() {
     .select(`
       funded_qty,
       funded_amount_cr,
-      exposure_percent,
       ltp,
       price_with_mtf,
       margin_multiple,
@@ -43,20 +42,28 @@ export async function getLatestDashboardData() {
     throw holdingsError;
   }
 
-  const rows: DashboardRow[] = (holdings || []).map((item: any) => ({
+  const baseRows: DashboardRow[] = (holdings || []).map((item: any) => ({
     company: item.stocks?.company_name || "Unknown",
     fundedQty: item.funded_qty,
     fundedAmount: item.funded_amount_cr,
-    exposure: item.exposure_percent,
+    exposure: null,
     ltp: item.ltp,
     priceWithMtf: item.price_with_mtf,
     margin: item.margin_multiple,
   }));
 
-  const totalBook = rows.reduce(
+  const totalBook = baseRows.reduce(
     (sum, row) => sum + (row.fundedAmount || 0),
     0
   );
+
+  const rows: DashboardRow[] = baseRows.map((row) => ({
+    ...row,
+    exposure:
+      totalBook > 0 && row.fundedAmount !== null
+        ? Number(((row.fundedAmount / totalBook) * 100).toFixed(2))
+        : 0,
+  }));
 
   return {
     report: latestReport,
