@@ -4,8 +4,12 @@ import { useEffect, useState } from "react";
 import Header from "./components/Header";
 import MetricCards from "./components/MetricCards";
 import TopStockCards from "./components/TopStockCards";
-import MtfTable from "./components/MtfTable";
+import MtfTable, {
+  type ViewMode,
+  type ChangeMode,
+} from "./components/MtfTable";
 import UploadPage from "./components/UploadPage";
+
 import {
   getLatestDashboardData,
   type DashboardRow,
@@ -23,10 +27,14 @@ function App() {
   });
   const [loading, setLoading] = useState(true);
 
+  const [viewMode, setViewMode] = useState<ViewMode>("overall");
+  const [changeMode, setChangeMode] = useState<ChangeMode>("none");
+
   useEffect(() => {
     async function loadDashboard() {
       try {
-        const data = await getLatestDashboardData();
+        setLoading(true);
+        const data = await getLatestDashboardData(viewMode, changeMode);
         setRows(data.rows);
         setMetrics(data.metrics);
       } catch (error) {
@@ -37,7 +45,7 @@ function App() {
     }
 
     loadDashboard();
-  }, []);
+  }, [viewMode, changeMode]);
 
   if (currentPage === "upload") {
     return <UploadPage setCurrentPage={setCurrentPage} />;
@@ -51,13 +59,20 @@ function App() {
         setCurrentPage={setCurrentPage}
       />
 
-      {loading && <p>Loading latest dashboard data...</p>}
+      {loading && <p>Loading dashboard data...</p>}
 
       {!loading && (
         <>
           <MetricCards metrics={metrics} />
           <TopStockCards rows={rows.slice(0, 5)} />
-          <MtfTable rows={rows} searchTerm={searchTerm} />
+          <MtfTable
+            rows={rows}
+            searchTerm={searchTerm}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+            changeMode={changeMode}
+            setChangeMode={setChangeMode}
+          />
         </>
       )}
     </div>
