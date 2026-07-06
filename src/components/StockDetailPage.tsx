@@ -1,4 +1,19 @@
+import { useEffect, useState } from "react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+} from "recharts";
+
 import type { DashboardRow } from "../services/dashboardService";
+import {
+  getStockHistory,
+  type StockHistoryRow,
+} from "../services/stockHistoryService";
 
 type StockDetailPageProps = {
   stock: DashboardRow;
@@ -22,6 +37,31 @@ function formatNumber(value: number | null) {
 }
 
 function StockDetailPage({ stock, setCurrentPage }: StockDetailPageProps) {
+  const [history, setHistory] = useState<StockHistoryRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    async function loadHistory() {
+      try {
+        setLoading(true);
+        setErrorMessage("");
+
+        const data = await getStockHistory(stock.company);
+        setHistory(data.history);
+      } catch (error) {
+        console.error("Stock history load failed:", error);
+        setErrorMessage("Could not load stock history.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadHistory();
+  }, [stock.company]);
+
+  const latest = history[history.length - 1];
+
   return (
     <div className="page">
       <button
@@ -32,6 +72,7 @@ function StockDetailPage({ stock, setCurrentPage }: StockDetailPageProps) {
           background: "transparent",
           cursor: "pointer",
           fontWeight: 700,
+          color: "#243B8A",
         }}
       >
         ← Back to Dashboard
@@ -44,32 +85,83 @@ function StockDetailPage({ stock, setCurrentPage }: StockDetailPageProps) {
 
       <div className="metric-grid">
         <div className="metric-card">
-          <p>Funded Amount</p>
-          <h2>{formatCr(stock.fundedAmount)}</h2>
+          <p>Latest Funded Amount</p>
+          <h2>{formatCr(latest?.fundedAmount ?? stock.fundedAmount)}</h2>
         </div>
 
         <div className="metric-card">
-          <p>Funded Qty</p>
-          <h2>{formatNumber(stock.fundedQty)}</h2>
+          <p>Latest Funded Qty</p>
+          <h2>{formatNumber(latest?.fundedQty ?? stock.fundedQty)}</h2>
         </div>
 
         <div className="metric-card">
-          <p>Exposure</p>
+          <p>Current Exposure</p>
           <h2>{stock.exposure ?? "-"}%</h2>
         </div>
 
         <div className="metric-card">
           <p>LTP</p>
-          <h2>{formatNumber(stock.ltp)}</h2>
+          <h2>{history.length}</h2>
         </div>
       </div>
 
       <div className="table-section" style={{ marginTop: "32px" }}>
-        <h2>Historical Analytics</h2>
-        <p style={{ opacity: 0.7 }}>
-          Charts, weekly movement, monthly movement, and full stock history will
-          be added here next.
-        </p>
+        <h2>Funded Amount History</h2>
+
+        {loading && <p>Loading stock history...</p>}
+
+        {errorMessage && (
+          <p style={{ color: "#dc2626", fontWeight: 700 }}>{errorMessage}</p>
+        )}
+
+        {!loading && !errorMessage && (
+          <div style={{ width: "100%", height: "360px" }}>
+            <ResponsiveContainer>
+              <LineChart data={history}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="reportDate" />
+                <YAxis />
+                <Tooltip />
+                <Line
+                  type="monotone"
+                  dataKey="fundedAmount"
+                  strokeWidth={3}
+                  dot={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+
+      <div className="table-section" style={{ marginTop: "32px" }}>
+        <h2>Recent History</h2>
+
+        {!loading && !errorMessage && (
+          <table className="mtf-table">
+            <thead>
+              <tr>
+                <th>Report Date</th>
+                <th>Funded Qty</th>
+                <th>Funded Amount (Cr)</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {history
+                .slice()
+                .reverse()
+                .slice(0, 20)
+                .map((row) => (
+                  <tr key={row.reportDate}>
+                    <td>{row.reportDate}</td>
+                    <td>{formatNumber(row.fundedQty)}</td>
+                    <td>{formatNumber(row.fundedAmount)}</td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );
