@@ -4,37 +4,72 @@ type HeaderProps = {
   setCurrentPage: (page: string) => void;
 };
 
-function Header({
+export default function Header({
   searchTerm,
   setSearchTerm,
   setCurrentPage,
 }: HeaderProps) {
   return (
-    <div
+    <header
       style={{
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: "30px",
+        marginBottom: "32px",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-        <h1>MTF Insights</h1>
-
-        <button
-          onClick={() => setCurrentPage("upload")}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "28px",
+        }}
+      >
+        <h1
           style={{
-            padding: "10px 18px",
-            borderRadius: "8px",
-            border: "1px solid #2563eb",
-            backgroundColor: "white",
-            color: "#2563eb",
-            fontWeight: 600,
+            margin: 0,
             cursor: "pointer",
+            color: "#243B8A",
+            fontSize: "3rem",
+            fontWeight: 700,
           }}
+          onClick={() => setCurrentPage("dashboard")}
+        >
+          MTF Insights
+        </h1>
+
+        <span
+          style={{
+            cursor: "pointer",
+            fontWeight: 600,
+            color: "#243B8A",
+          }}
+          onClick={() => setCurrentPage("dashboard")}
+        >
+          Dashboard
+        </span>
+
+        <span
+          style={{
+            cursor: "pointer",
+            fontWeight: 600,
+            color: "#243B8A",
+          }}
+          onClick={() => setCurrentPage("upload")}
         >
           Add Data
-        </button>
+        </span>
+
+        <span
+          style={{
+            cursor: "pointer",
+            fontWeight: 600,
+            color: "#243B8A",
+          }}
+          onClick={() => setCurrentPage("upload-history")}
+        >
+          Upload History
+        </span>
       </div>
 
       <input
@@ -43,14 +78,14 @@ function Header({
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
         style={{
-          padding: "10px",
-          width: "250px",
-          borderRadius: "8px",
-          border: "1px solid #999",
+          width: "280px",
+          height: "44px",
+          padding: "0 16px",
+          borderRadius: "10px",
+          border: "1px solid #d5dbe6",
+          fontSize: "15px",
         }}
       />
-    </div>
+    </header>
   );
 }
-
-export default Header;

@@ -11,7 +11,7 @@ const supabase = createClient(
 const zipPath = process.argv[2];
 
 if (!zipPath) {
-  console.error("Usage: node scripts/importHistoricalZip.mjs ./path/to/2024.zip");
+  console.error("Usage: node scripts/importHistoricalZip.mjs ./path/to/2026.zip");
   process.exit(1);
 }
 
@@ -20,8 +20,10 @@ const HOLDING_BATCH_SIZE = 150;
 
 function cleanNumber(value) {
   if (value === undefined || value === null || value === "") return null;
+
   const cleaned = String(value).replace(/,/g, "").trim();
   const num = Number(cleaned);
+
   return Number.isNaN(num) ? null : num;
 }
 
@@ -30,21 +32,34 @@ function parseDateFromText(text, fallbackFileName) {
 
   if (match) {
     const [, day, mon, year] = match;
+
     const months = {
-      JAN: "01", FEB: "02", MAR: "03", APR: "04",
-      MAY: "05", JUN: "06", JUL: "07", AUG: "08",
-      SEP: "09", OCT: "10", NOV: "11", DEC: "12",
+      JAN: "01",
+      FEB: "02",
+      MAR: "03",
+      APR: "04",
+      MAY: "05",
+      JUN: "06",
+      JUL: "07",
+      AUG: "08",
+      SEP: "09",
+      OCT: "10",
+      NOV: "11",
+      DEC: "12",
     };
+
     return `${year}-${months[mon]}-${day}`;
   }
 
   const eightDigitMatch = fallbackFileName.match(/(\d{2})(\d{2})(\d{4})/);
+
   if (eightDigitMatch) {
     const [, dd, mm, yyyy] = eightDigitMatch;
     return `${yyyy}-${mm}-${dd}`;
   }
 
   const sixDigitMatch = fallbackFileName.match(/(\d{2})(\d{2})(\d{2})/);
+
   if (sixDigitMatch) {
     const [, dd, mm, yy] = sixDigitMatch;
     return `20${yy}-${mm}-${dd}`;
@@ -55,10 +70,22 @@ function parseDateFromText(text, fallbackFileName) {
 
 function chunkArray(array, size) {
   const chunks = [];
+
   for (let i = 0; i < array.length; i += size) {
     chunks.push(array.slice(i, i + size));
   }
+
   return chunks;
+}
+
+function shouldSkipEntry(entryName) {
+  return (
+    entryName.startsWith("__MACOSX/") ||
+    entryName.includes("__MACOSX") ||
+    entryName.includes("/._") ||
+    entryName.startsWith("._") ||
+    entryName.endsWith("/")
+  );
 }
 
 async function getOrCreateReport(reportDate, fileName) {
@@ -201,6 +228,7 @@ async function processCsv(csvText, fileName) {
   const holdingRows = stockRows
     .map((row) => {
       const stockId = stockIdBySymbol.get(row.symbol);
+
       if (!stockId) return null;
 
       return {
@@ -223,6 +251,21 @@ async function processCsv(csvText, fileName) {
   );
 }
 
+async function processCsvEntry(entryName, entryData) {
+  if (shouldSkipEntry(entryName)) return false;
+  if (!entryName.toLowerCase().endsWith(".csv")) return false;
+
+  const csvText = entryData.toString("utf8");
+
+  try {
+    await processCsv(csvText, entryName);
+    return true;
+  } catch (error) {
+    console.error(`Failed file: ${entryName}`);
+    throw error;
+  }
+}
+
 async function main() {
   const outerZip = new AdmZip(zipPath);
   const entries = outerZip.getEntries();
@@ -230,22 +273,43 @@ async function main() {
   let processed = 0;
 
   for (const entry of entries) {
-    if (!entry.entryName.toLowerCase().endsWith(".zip")) continue;
+    const entryName = entry.entryName;
 
-    const innerZip = new AdmZip(entry.getData());
+    if (shouldSkipEntry(entryName)) continue;
+
+    if (entryName.toLowerCase().endsWith(".csv")) {
+      const didProcess = await processCsvEntry(entryName, entry.getData());
+
+      if (didProcess) {
+        processed += 1;
+      }
+
+      continue;
+    }
+
+    if (!entryName.toLowerCase().endsWith(".zip")) continue;
+
+    let innerZip;
+
+    try {
+      innerZip = new AdmZip(entry.getData());
+    } catch {
+      console.log(`Skipped invalid zip entry: ${entryName}`);
+      continue;
+    }
+
     const innerEntries = innerZip.getEntries();
 
     for (const innerEntry of innerEntries) {
-      if (!innerEntry.entryName.toLowerCase().endsWith(".csv")) continue;
+      const innerName = innerEntry.entryName;
 
-      const csvText = innerEntry.getData().toString("utf8");
+      if (shouldSkipEntry(innerName)) continue;
+      if (!innerName.toLowerCase().endsWith(".csv")) continue;
 
-      try {
-        await processCsv(csvText, innerEntry.entryName);
+      const didProcess = await processCsvEntry(innerName, innerEntry.getData());
+
+      if (didProcess) {
         processed += 1;
-      } catch (error) {
-        console.error(`Failed file: ${innerEntry.entryName}`);
-        throw error;
       }
     }
   }

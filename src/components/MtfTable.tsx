@@ -11,6 +11,7 @@ type MtfTableProps = {
   setViewMode: Dispatch<SetStateAction<ViewMode>>;
   changeMode: ChangeMode;
   setChangeMode: Dispatch<SetStateAction<ChangeMode>>;
+  onStockClick: (stock: DashboardRow) => void;
 };
 
 function formatNumber(value: number | null) {
@@ -33,6 +34,7 @@ function MtfTable({
   setViewMode,
   changeMode,
   setChangeMode,
+  onStockClick,
 }: MtfTableProps) {
   const filteredRows = rows.filter((row) =>
     row.company.toLowerCase().includes(searchTerm.toLowerCase())
@@ -131,8 +133,14 @@ function MtfTable({
 
         <tbody>
           {filteredRows.map((row) => (
-            <tr key={row.company}>
-              <td>{row.company}</td>
+            <tr
+              key={row.company}
+              onClick={() => onStockClick(row)}
+              style={{ cursor: "pointer" }}
+            >
+            <td>
+                <strong>{row.company}</strong>
+            </td>
               <td>{formatNumber(row.fundedQty)}</td>
               <td>{formatNumber(row.fundedAmount)}</td>
               <td>{formatPercent(row.exposure)}</td>
