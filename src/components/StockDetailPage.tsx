@@ -101,7 +101,7 @@ function StockDetailPage({ stock, setCurrentPage }: StockDetailPageProps) {
 
         <div className="metric-card">
           <p>LTP</p>
-          <h2>{history.length}</h2>
+          <h2>-</h2>
         </div>
       </div>
 
@@ -111,7 +111,9 @@ function StockDetailPage({ stock, setCurrentPage }: StockDetailPageProps) {
         {loading && <p>Loading stock history...</p>}
 
         {errorMessage && (
-          <p style={{ color: "#dc2626", fontWeight: 700 }}>{errorMessage}</p>
+          <p style={{ color: "#dc2626", fontWeight: 700 }}>
+            {errorMessage}
+          </p>
         )}
 
         {!loading && !errorMessage && (
@@ -119,9 +121,20 @@ function StockDetailPage({ stock, setCurrentPage }: StockDetailPageProps) {
             <ResponsiveContainer>
               <LineChart data={history}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="reportDate" />
+
+                <XAxis
+                  dataKey="reportDate"
+                  tickFormatter={(value) =>
+                    new Date(value).toLocaleDateString("en-IN", {
+                      month: "short",
+                      year: "2-digit",
+                    })
+                  }
+                />
+
                 <YAxis />
                 <Tooltip />
+
                 <Line
                   type="monotone"
                   dataKey="fundedAmount"
@@ -131,36 +144,6 @@ function StockDetailPage({ stock, setCurrentPage }: StockDetailPageProps) {
               </LineChart>
             </ResponsiveContainer>
           </div>
-        )}
-      </div>
-
-      <div className="table-section" style={{ marginTop: "32px" }}>
-        <h2>Recent History</h2>
-
-        {!loading && !errorMessage && (
-          <table className="mtf-table">
-            <thead>
-              <tr>
-                <th>Report Date</th>
-                <th>Funded Qty</th>
-                <th>Funded Amount (Cr)</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {history
-                .slice()
-                .reverse()
-                .slice(0, 20)
-                .map((row) => (
-                  <tr key={row.reportDate}>
-                    <td>{row.reportDate}</td>
-                    <td>{formatNumber(row.fundedQty)}</td>
-                    <td>{formatNumber(row.fundedAmount)}</td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
         )}
       </div>
     </div>

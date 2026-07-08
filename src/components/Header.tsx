@@ -25,18 +25,37 @@ export default function Header({
           gap: "28px",
         }}
       >
-        <h1
+        {/* Logo + Title */}
+        <div
           style={{
-            margin: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
             cursor: "pointer",
-            color: "#243B8A",
-            fontSize: "3rem",
-            fontWeight: 700,
           }}
           onClick={() => setCurrentPage("dashboard")}
         >
-          MTF Insights
-        </h1>
+          <img
+            src="/wealthstreet-logo.png"
+            alt="Wealthstreet"
+            style={{
+              height: "42px",
+              width: "auto",
+              objectFit: "contain",
+            }}
+          />
+
+          <h1
+            style={{
+              margin: 0,
+              color: "#243B8A",
+              fontSize: "2.6rem",
+              fontWeight: 700,
+            }}
+          >
+            MTF Insights
+          </h1>
+        </div>
 
         <span
           style={{
