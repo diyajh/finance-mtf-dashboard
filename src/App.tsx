@@ -23,6 +23,7 @@ function App() {
   const [selectedStock, setSelectedStock] = useState<DashboardRow | null>(null);
 
   const [rows, setRows] = useState<DashboardRow[]>([]);
+  const [reportDate, setReportDate] = useState("");
 
   const [metrics, setMetrics] = useState({
     industryBook: 0,
@@ -47,6 +48,7 @@ function App() {
 
         setRows(data.rows);
         setMetrics(data.metrics);
+        setReportDate(data.report?.report_date || "");
       } catch (error) {
         console.error("Dashboard load failed:", error);
         setErrorMessage("Could not load dashboard data. Please refresh.");
@@ -82,11 +84,7 @@ function App() {
 
   return (
     <div className="page">
-      <Header
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
-        setCurrentPage={setCurrentPage}
-      />
+      <Header setCurrentPage={setCurrentPage} />
 
       {loading && <p>Loading dashboard data...</p>}
 
@@ -107,11 +105,13 @@ function App() {
 
       {!loading && !errorMessage && (
         <>
-          <MetricCards metrics={metrics} />
+          <MetricCards metrics={metrics} reportDate={reportDate} />
 
           <TopStockCards
             rows={rows.slice(0, 5)}
             onStockClick={openStockPage}
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
           />
 
           <MtfTable

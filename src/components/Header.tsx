@@ -1,19 +1,12 @@
 type HeaderProps = {
-  searchTerm: string;
-  setSearchTerm: (value: string) => void;
   setCurrentPage: (page: string) => void;
 };
 
-export default function Header({
-  searchTerm,
-  setSearchTerm,
-  setCurrentPage,
-}: HeaderProps) {
+export default function Header({ setCurrentPage }: HeaderProps) {
   return (
     <header
       style={{
         display: "flex",
-        justifyContent: "space-between",
         alignItems: "center",
         marginBottom: "32px",
       }}
@@ -22,15 +15,14 @@ export default function Header({
         style={{
           display: "flex",
           alignItems: "center",
-          gap: "28px",
+          gap: "26px",
         }}
       >
-        {/* Logo + Title */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: "12px",
+            gap: "14px",
             cursor: "pointer",
           }}
           onClick={() => setCurrentPage("dashboard")}
@@ -39,7 +31,7 @@ export default function Header({
             src="/wealthstreet-logo.png"
             alt="Wealthstreet"
             style={{
-              height: "42px",
+              height: "64px",
               width: "auto",
               objectFit: "contain",
             }}
@@ -49,7 +41,7 @@ export default function Header({
             style={{
               margin: 0,
               color: "#243B8A",
-              fontSize: "2.6rem",
+              fontSize: "2rem",
               fontWeight: 700,
             }}
           >
@@ -58,53 +50,19 @@ export default function Header({
         </div>
 
         <span
-          style={{
-            cursor: "pointer",
-            fontWeight: 600,
-            color: "#243B8A",
-          }}
-          onClick={() => setCurrentPage("dashboard")}
-        >
-          Dashboard
-        </span>
-
-        <span
-          style={{
-            cursor: "pointer",
-            fontWeight: 600,
-            color: "#243B8A",
-          }}
+          style={{ cursor: "pointer", fontWeight: 600, color: "#243B8A" }}
           onClick={() => setCurrentPage("upload")}
         >
           Add Data
         </span>
 
         <span
-          style={{
-            cursor: "pointer",
-            fontWeight: 600,
-            color: "#243B8A",
-          }}
+          style={{ cursor: "pointer", fontWeight: 600, color: "#243B8A" }}
           onClick={() => setCurrentPage("upload-history")}
         >
           Upload History
         </span>
       </div>
-
-      <input
-        type="text"
-        placeholder="Search stock..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-        style={{
-          width: "280px",
-          height: "44px",
-          padding: "0 16px",
-          borderRadius: "10px",
-          border: "1px solid #d5dbe6",
-          fontSize: "15px",
-        }}
-      />
     </header>
   );
 }
