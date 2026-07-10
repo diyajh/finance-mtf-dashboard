@@ -21,6 +21,11 @@ type MtfTableProps = {
   onStockClick: (stock: DashboardRow) => void;
 };
 
+const POSITIVE_COLOR = "#66bb6a";
+const NEGATIVE_COLOR = "#ef6c6c";
+const NEUTRAL_COLOR = "#6b7280";
+const TEXT_COLOR = "#111827";
+
 function formatNumber(value: number | null) {
   if (value === null || value === undefined) {
     return "-";
@@ -64,37 +69,29 @@ function formatSignedPercent(value: number | null) {
 }
 
 function getChangeColor(value: number | null) {
-    if (value === null || value === undefined || value === 0) {
-      return "#6b7280";
-    }
-  
-    return value > 0 ? "#4CAF50" : "#EF5350";
+  if (value === null || value === undefined || value === 0) {
+    return NEUTRAL_COLOR;
   }
+
+  return value > 0 ? POSITIVE_COLOR : NEGATIVE_COLOR;
+}
 
 function ChangeValue({
   value,
-  isPercent = false,
 }: {
   value: number | null;
-  isPercent?: boolean;
 }) {
-  if (value === null || value === undefined) {
-    return null;
-  }
-
   return (
     <div
       style={{
-        marginTop: "5px",
+        marginTop: "3px",
         color: getChangeColor(value),
-        fontSize: "13px",
-        fontWeight: 700,
+        fontSize: "12px",
+        fontWeight: 600,
         lineHeight: 1.2,
       }}
     >
-      {isPercent
-        ? formatSignedPercent(value)
-        : formatSignedNumber(value)}
+      {formatSignedPercent(value)}
     </div>
   );
 }
@@ -252,23 +249,19 @@ function MtfTable({
                 background: "white",
                 cursor: "pointer",
                 fontSize: "14px",
-                color: "#111827",
+                color: TEXT_COLOR,
               }}
             >
               <option value="none">None</option>
-
               <option value="stock-asc">
                 Stock Name Ascending
               </option>
-
               <option value="stock-desc">
                 Stock Name Descending
               </option>
-
               <option value="amount-asc">
                 Funded Amount Ascending
               </option>
-
               <option value="amount-desc">
                 Funded Amount Descending
               </option>
@@ -307,29 +300,15 @@ function MtfTable({
 
         <tbody>
           {sortedRows.map((row) => {
-            const quantityValue =
+            const quantityDisplay =
               viewMode === "overall"
                 ? formatNumber(row.fundedQty)
                 : formatSignedNumber(row.fundedQty);
 
-            const amountValue =
-              viewMode === "added"
-                ? `+${formatNumber(row.fundedAmount)}`
-                : viewMode === "liquidated"
-                ? `-${formatNumber(row.fundedAmount)}`
-                : formatNumber(row.fundedAmount);
-
-            const quantityColor =
+            const amountDisplay =
               viewMode === "overall"
-                ? "#111827"
-                : getChangeColor(row.qtyChange);
-
-            const amountColor =
-              viewMode === "added"
-                ? "#16a34a"
-                : viewMode === "liquidated"
-                ? "#dc2626"
-                : "#111827";
+                ? formatNumber(row.fundedAmount)
+                : formatSignedNumber(row.fundedAmount);
 
             return (
               <tr
@@ -337,77 +316,48 @@ function MtfTable({
                 onClick={() => onStockClick(row)}
                 style={{
                   cursor: "pointer",
-                  color: "#111827",
+                  color: TEXT_COLOR,
                 }}
               >
-                <td style={{ color: "#111827" }}>
-                  <strong style={{ color: "#111827" }}>
+                <td style={{ color: TEXT_COLOR }}>
+                  <strong style={{ color: TEXT_COLOR }}>
                     {row.company}
                   </strong>
                 </td>
 
-                <td style={{ color: "#111827" }}>
-                  <div
-                    style={{
-                      color:
-                        showChanges && viewMode !== "overall"
-                          ? "#111827"
-                          : quantityColor,
-                      fontWeight:
-                        !showChanges && viewMode !== "overall"
-                          ? 700
-                          : 400,
-                    }}
-                  >
-                    {quantityValue}
-                  </div>
+                <td style={{ color: TEXT_COLOR }}>
+                  <div>{quantityDisplay}</div>
 
                   {showChanges && (
-                    <ChangeValue value={row.qtyChange} />
+                    <ChangeValue value={row.qtyChangePercent} />
                   )}
                 </td>
 
-                <td style={{ color: "#111827" }}>
-                  <div
-                    style={{
-                      color:
-                        showChanges && viewMode !== "overall"
-                          ? "#111827"
-                          : amountColor,
-                      fontWeight:
-                        !showChanges && viewMode !== "overall"
-                          ? 700
-                          : 400,
-                    }}
-                  >
-                    {amountValue}
-                  </div>
+                <td style={{ color: TEXT_COLOR }}>
+                  <div>{amountDisplay}</div>
 
                   {showChanges && (
-                    <ChangeValue value={row.amountChange} />
+                    <ChangeValue value={row.amountChangePercent} />
                   )}
                 </td>
 
-                <td style={{ color: "#111827" }}>
+                <td style={{ color: TEXT_COLOR }}>
                   <div>{formatPercent(row.exposure)}</div>
 
                   {showChanges && (
-                    <ChangeValue
-                      value={row.exposureChange}
-                      isPercent
-                    />
+                    <ChangeValue value={row.exposureChange} />
                   )}
                 </td>
 
-                <td style={{ color: "#111827" }}>
+                <td style={{ color: TEXT_COLOR }}>
                   {formatNumber(row.ltp)}
                 </td>
 
-                <td style={{ color: "#111827" }}>
+                <td style={{ color: TEXT_COLOR }}>
                   {formatNumber(row.priceWithMtf)}
                 </td>
 
-                <td style={{ color: "#111827" }}>
+                <td style={{ color: TEXT_COLOR }}>
                   {formatNumber(row.margin)}
                 </td>
               </tr>
@@ -421,7 +371,7 @@ function MtfTable({
                 style={{
                   textAlign: "center",
                   padding: "32px",
-                  color: "#6b7280",
+                  color: NEUTRAL_COLOR,
                 }}
               >
                 No stocks found.

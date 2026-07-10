@@ -3,6 +3,7 @@ import type { ViewMode, ChangeMode } from "../components/MtfTable";
 
 export type DashboardRow = {
   company: string;
+
   fundedQty: number | null;
   fundedAmount: number | null;
   exposure: number | null;
@@ -13,6 +14,9 @@ export type DashboardRow = {
   qtyChange: number | null;
   amountChange: number | null;
   exposureChange: number | null;
+
+  qtyChangePercent: number | null;
+  amountChangePercent: number | null;
 };
 
 type WeeklyReport = {
@@ -48,10 +52,12 @@ type ComparisonRow = {
   currentQty: number;
   previousQty: number;
   qtyChange: number;
+  qtyChangePercent: number | null;
 
   currentAmount: number;
   previousAmount: number;
   amountChange: number;
+  amountChangePercent: number | null;
 
   currentExposure: number;
   previousExposure: number;
@@ -64,6 +70,21 @@ type ComparisonRow = {
 
 function toNumber(value: number | null | undefined) {
   return value ?? 0;
+}
+
+function calculatePercentageChange(
+  currentValue: number,
+  previousValue: number
+): number | null {
+  if (previousValue === 0) {
+    return null;
+  }
+
+  return Number(
+    (((currentValue - previousValue) / Math.abs(previousValue)) * 100).toFixed(
+      2
+    )
+  );
 }
 
 function chunkArray<T>(array: T[], size: number) {
@@ -153,15 +174,20 @@ async function getHoldingsForReport(
   return holdingRows.map((holding) => ({
     stockId: holding.stock_id,
     company: stockNameById.get(holding.stock_id) || "Unknown",
+
     fundedQty: holding.funded_qty,
     fundedAmount: holding.funded_amount_cr,
     exposure: null,
     ltp: holding.ltp,
     priceWithMtf: holding.price_with_mtf,
     margin: holding.margin_multiple,
+
     qtyChange: null,
     amountChange: null,
     exposureChange: null,
+
+    qtyChangePercent: null,
+    amountChangePercent: null,
   }));
 }
 
@@ -291,9 +317,11 @@ function compareReports(
 
     const currentQty = toNumber(current?.fundedQty);
     const previousQty = toNumber(previous?.fundedQty);
+    const qtyChange = currentQty - previousQty;
 
     const currentAmount = toNumber(current?.fundedAmount);
     const previousAmount = toNumber(previous?.fundedAmount);
+    const amountChange = currentAmount - previousAmount;
 
     const currentExposure =
       currentExposureByStockId.get(stockId) ?? 0;
@@ -307,11 +335,19 @@ function compareReports(
 
       currentQty,
       previousQty,
-      qtyChange: currentQty - previousQty,
+      qtyChange,
+      qtyChangePercent: calculatePercentageChange(
+        currentQty,
+        previousQty
+      ),
 
       currentAmount,
       previousAmount,
-      amountChange: currentAmount - previousAmount,
+      amountChange,
+      amountChangePercent: calculatePercentageChange(
+        currentAmount,
+        previousAmount
+      ),
 
       currentExposure,
       previousExposure,
@@ -342,6 +378,7 @@ function getOverallRows(
 
     return {
       company: row.company,
+
       fundedQty: row.fundedQty,
       fundedAmount: row.fundedAmount,
       exposure: row.exposure,
@@ -352,6 +389,9 @@ function getOverallRows(
       qtyChange: comparison?.qtyChange ?? 0,
       amountChange: comparison?.amountChange ?? 0,
       exposureChange: comparison?.exposureChange ?? 0,
+
+      qtyChangePercent: comparison?.qtyChangePercent ?? null,
+      amountChangePercent: comparison?.amountChangePercent ?? null,
     };
   });
 }
@@ -376,6 +416,9 @@ function getAddedRows(
       qtyChange: row.qtyChange,
       amountChange: row.amountChange,
       exposureChange: row.exposureChange,
+
+      qtyChangePercent: row.qtyChangePercent,
+      amountChangePercent: row.amountChangePercent,
     }));
 }
 
@@ -392,7 +435,7 @@ function getLiquidatedRows(
       company: row.company,
 
       fundedQty: row.qtyChange,
-      fundedAmount: Math.abs(row.amountChange),
+      fundedAmount: row.amountChange,
       exposure: row.currentExposure,
 
       ltp: row.ltp,
@@ -402,6 +445,9 @@ function getLiquidatedRows(
       qtyChange: row.qtyChange,
       amountChange: row.amountChange,
       exposureChange: row.exposureChange,
+
+      qtyChangePercent: row.qtyChangePercent,
+      amountChangePercent: row.amountChangePercent,
     }));
 }
 
@@ -459,7 +505,7 @@ export async function getLatestDashboardData(
   const liquidatedRows = getLiquidatedRows(comparisonRows);
 
   const positionsAdded = addedRows.reduce(
-    (sum, row) => sum + Math.abs(toNumber(row.amountChange)),
+    (sum, row) => sum + Math.max(toNumber(row.amountChange), 0),
     0
   );
 
