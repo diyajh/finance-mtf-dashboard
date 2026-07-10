@@ -1,16 +1,31 @@
-import { useState } from "react";
+import { useState, type ChangeEvent } from "react";
 import * as XLSX from "xlsx";
 import Papa from "papaparse";
 import { supabase } from "../lib/supabase";
 
 type RawRow = string[];
 
+type StockRow = {
+  symbol: string;
+  company_name: string;
+  funded_qty: number | null;
+  funded_amount_cr: number | null;
+};
+
+type HoldingInsertRow = {
+  report_id: string;
+  stock_id: string;
+  status: string;
+  funded_qty: number | null;
+  funded_amount_cr: number | null;
+};
+
 function FileUpload() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploaded, setUploaded] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
 
     if (file) {
@@ -25,7 +40,9 @@ function FileUpload() {
   };
 
   const cleanNumber = (value: unknown) => {
-    if (value === undefined || value === null || value === "") return null;
+    if (value === undefined || value === null || value === "") {
+      return null;
+    }
 
     const cleaned = String(value).replace(/,/g, "").trim();
     const numberValue = Number(cleaned);
@@ -77,8 +94,12 @@ function FileUpload() {
         Papa.parse<string[]>(file, {
           header: false,
           skipEmptyLines: false,
-          complete: (results) => resolve(results.data as RawRow[]),
-          error: (error) => reject(error),
+          complete: (results) => {
+            resolve(results.data as RawRow[]);
+          },
+          error: (error) => {
+            reject(error);
+          },
         });
       });
     }
@@ -95,7 +116,9 @@ function FileUpload() {
   };
 
   const handleUpload = async () => {
-    if (!selectedFile) return;
+    if (!selectedFile) {
+      return;
+    }
 
     try {
       setLoading(true);
@@ -115,7 +138,7 @@ function FileUpload() {
 
       const reportDate = parseReportDate(rows);
 
-      const stockRows = rows
+      const stockRows: StockRow[] = rows
         .slice(headerIndex + 1)
         .filter((row) => row[0] && row[1])
         .map((row) => {
@@ -142,21 +165,27 @@ function FileUpload() {
             uploaded_by: "admin",
           },
         ])
-        .select()
+        .select("id")
         .single();
 
-      if (reportError) throw reportError;
+      if (reportError) {
+        throw reportError;
+      }
 
-      const { error: fileError } = await supabase.from("uploaded_files").insert([
-        {
-          report_id: reportData.id,
-          file_name: selectedFile.name,
-          file_type: selectedFile.type || "csv/excel",
-          file_size: selectedFile.size,
-        },
-      ]);
+      const { error: fileError } = await supabase
+        .from("uploaded_files")
+        .insert([
+          {
+            report_id: reportData.id,
+            file_name: selectedFile.name,
+            file_type: selectedFile.type || "csv/excel",
+            file_size: selectedFile.size,
+          },
+        ]);
 
-      if (fileError) throw fileError;
+      if (fileError) {
+        throw fileError;
+      }
 
       const stockInsertRows = stockRows.map((row) => ({
         symbol: row.symbol,
@@ -171,7 +200,9 @@ function FileUpload() {
           .upsert(chunk, { onConflict: "symbol" })
           .select("id, symbol");
 
-        if (error) throw error;
+        if (error) {
+          throw error;
+        }
 
         allStocks.push(...(data || []));
       }
@@ -180,30 +211,39 @@ function FileUpload() {
         allStocks.map((stock) => [stock.symbol, stock.id])
       );
 
-      const holdingRows = stockRows
-        .map((row) => {
-          const stockId = stockIdBySymbol.get(row.symbol);
+      const holdingRows: HoldingInsertRow[] = stockRows.flatMap((row) => {
+        const stockId = stockIdBySymbol.get(row.symbol);
 
-          if (!stockId) return null;
+        if (!stockId) {
+          return [];
+        }
 
-          return {
+        return [
+          {
             report_id: reportData.id,
             stock_id: stockId,
             status: "overall",
             funded_qty: row.funded_qty,
             funded_amount_cr: row.funded_amount_cr,
-          };
-        })
-        .filter(Boolean);
+          },
+        ];
+      });
 
       for (const chunk of chunkArray(holdingRows, 500)) {
-        const { error } = await supabase.from("mtf_holdings").insert(chunk);
+        const { error } = await supabase
+          .from("mtf_holdings")
+          .insert(chunk);
 
-        if (error) throw error;
+        if (error) {
+          throw error;
+        }
       }
 
       setUploaded(true);
-      alert(`File uploaded successfully. Stocks inserted: ${stockRows.length}`);
+
+      alert(
+        `File uploaded successfully. Stocks inserted: ${stockRows.length}`
+      );
     } catch (error) {
       console.error(error);
       alert("Upload failed. Check console for details.");
@@ -216,13 +256,18 @@ function FileUpload() {
     <div className="upload-box">
       <div className="upload-icon">⇩</div>
 
-      <h2>{selectedFile ? selectedFile.name : "Drop files or click to upload"}</h2>
+      <h2>
+        {selectedFile
+          ? selectedFile.name
+          : "Drop files or click to upload"}
+      </h2>
 
       <p>Supported formats: .xlsx, .xls, .csv</p>
 
       {!selectedFile && (
         <label className="browse-button">
           Browse File
+
           <input
             type="file"
             accept=".xlsx,.xls,.csv"
@@ -234,16 +279,35 @@ function FileUpload() {
 
       {selectedFile && (
         <>
-          <p style={{ marginTop: "16px", fontWeight: 600 }}>
+          <p
+            style={{
+              marginTop: "16px",
+              fontWeight: 600,
+            }}
+          >
             Selected file: {selectedFile.name}
           </p>
 
-          <div style={{ marginTop: "20px", display: "flex", gap: "12px" }}>
-            <button className="cancel-btn" onClick={handleCancel}>
+          <div
+            style={{
+              marginTop: "20px",
+              display: "flex",
+              gap: "12px",
+            }}
+          >
+            <button
+              className="cancel-btn"
+              onClick={handleCancel}
+              disabled={loading}
+            >
               Cancel Upload
             </button>
 
-            <button className="upload-btn" onClick={handleUpload} disabled={loading}>
+            <button
+              className="upload-btn"
+              onClick={handleUpload}
+              disabled={loading}
+            >
               {loading ? "Adding..." : "Add Data For Analysis"}
             </button>
           </div>
@@ -251,7 +315,13 @@ function FileUpload() {
       )}
 
       {uploaded && (
-        <p style={{ marginTop: "18px", color: "#16a34a", fontWeight: 700 }}>
+        <p
+          style={{
+            marginTop: "18px",
+            color: "#66bb6a",
+            fontWeight: 700,
+          }}
+        >
           ✓ Stock data saved to database successfully
         </p>
       )}

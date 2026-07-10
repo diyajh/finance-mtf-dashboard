@@ -22,7 +22,9 @@ type MtfTableProps = {
 };
 
 function formatNumber(value: number | null) {
-  if (value === null || value === undefined) return "-";
+  if (value === null || value === undefined) {
+    return "-";
+  }
 
   return value.toLocaleString("en-IN", {
     maximumFractionDigits: 2,
@@ -30,8 +32,71 @@ function formatNumber(value: number | null) {
 }
 
 function formatPercent(value: number | null) {
-  if (value === null || value === undefined) return "-";
-  return `${value}%`;
+  if (value === null || value === undefined) {
+    return "-";
+  }
+
+  return `${formatNumber(value)}%`;
+}
+
+function formatSignedNumber(value: number | null) {
+  if (value === null || value === undefined) {
+    return "-";
+  }
+
+  if (value > 0) {
+    return `+${formatNumber(value)}`;
+  }
+
+  return formatNumber(value);
+}
+
+function formatSignedPercent(value: number | null) {
+  if (value === null || value === undefined) {
+    return "-";
+  }
+
+  if (value > 0) {
+    return `+${formatNumber(value)}%`;
+  }
+
+  return `${formatNumber(value)}%`;
+}
+
+function getChangeColor(value: number | null) {
+    if (value === null || value === undefined || value === 0) {
+      return "#6b7280";
+    }
+  
+    return value > 0 ? "#4CAF50" : "#EF5350";
+  }
+
+function ChangeValue({
+  value,
+  isPercent = false,
+}: {
+  value: number | null;
+  isPercent?: boolean;
+}) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  return (
+    <div
+      style={{
+        marginTop: "5px",
+        color: getChangeColor(value),
+        fontSize: "13px",
+        fontWeight: 700,
+        lineHeight: 1.2,
+      }}
+    >
+      {isPercent
+        ? formatSignedPercent(value)
+        : formatSignedNumber(value)}
+    </div>
+  );
 }
 
 function MtfTable({
@@ -69,6 +134,8 @@ function MtfTable({
     });
   }
 
+  const showChanges = changeMode !== "none";
+
   return (
     <div className="table-section">
       <div
@@ -78,6 +145,8 @@ function MtfTable({
           justifyContent: "space-between",
           alignItems: "center",
           marginBottom: "18px",
+          gap: "20px",
+          flexWrap: "wrap",
         }}
       >
         <div className="tabs">
@@ -109,32 +178,66 @@ function MtfTable({
             display: "flex",
             gap: "20px",
             alignItems: "center",
+            flexWrap: "wrap",
           }}
         >
-          <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              cursor: "pointer",
+            }}
+          >
             <input
               type="checkbox"
               checked={changeMode === "weekly"}
               onChange={() =>
-                setChangeMode(changeMode === "weekly" ? "none" : "weekly")
+                setChangeMode(
+                  changeMode === "weekly" ? "none" : "weekly"
+                )
               }
             />
+
             Weekly Change
           </label>
 
-          <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              cursor: "pointer",
+            }}
+          >
             <input
               type="checkbox"
               checked={changeMode === "monthly"}
               onChange={() =>
-                setChangeMode(changeMode === "monthly" ? "none" : "monthly")
+                setChangeMode(
+                  changeMode === "monthly" ? "none" : "monthly"
+                )
               }
             />
+
             Monthly Change
           </label>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <span style={{ fontWeight: 600, color: "#243B8A" }}>Sort</span>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
+            <span
+              style={{
+                fontWeight: 600,
+                color: "#243B8A",
+              }}
+            >
+              Sort
+            </span>
 
             <select
               value={sortMode}
@@ -153,10 +256,22 @@ function MtfTable({
               }}
             >
               <option value="none">None</option>
-              <option value="stock-asc">Stock Name Ascending</option>
-              <option value="stock-desc">Stock Name Descending</option>
-              <option value="amount-asc">Funded Amount Ascending</option>
-              <option value="amount-desc">Funded Amount Descending</option>
+
+              <option value="stock-asc">
+                Stock Name Ascending
+              </option>
+
+              <option value="stock-desc">
+                Stock Name Descending
+              </option>
+
+              <option value="amount-asc">
+                Funded Amount Ascending
+              </option>
+
+              <option value="amount-desc">
+                Funded Amount Descending
+              </option>
             </select>
           </div>
         </div>
@@ -166,6 +281,7 @@ function MtfTable({
         <thead>
           <tr>
             <th>Company</th>
+
             <th>
               {viewMode === "added"
                 ? "Added Qty"
@@ -173,6 +289,7 @@ function MtfTable({
                 ? "Liquidated Qty"
                 : "Funded Qty"}
             </th>
+
             <th>
               {viewMode === "added"
                 ? "Added Amount (Cr)"
@@ -180,6 +297,7 @@ function MtfTable({
                 ? "Liquidated Amount (Cr)"
                 : "Funded Amount (Cr)"}
             </th>
+
             <th>Exposure</th>
             <th>LTP</th>
             <th>Price with MTF</th>
@@ -188,39 +306,128 @@ function MtfTable({
         </thead>
 
         <tbody>
-          {sortedRows.map((row) => (
-            <tr
-              key={row.company}
-              onClick={() => onStockClick(row)}
-              style={{ cursor: "pointer", color: "#111827" }}
-            >
-              <td style={{ color: "#111827" }}>
-                <strong style={{ color: "#111827" }}>{row.company}</strong>
-              </td>
+          {sortedRows.map((row) => {
+            const quantityValue =
+              viewMode === "overall"
+                ? formatNumber(row.fundedQty)
+                : formatSignedNumber(row.fundedQty);
 
-              <td style={{ color: "#111827" }}>
-                {formatNumber(row.fundedQty)}
-              </td>
+            const amountValue =
+              viewMode === "added"
+                ? `+${formatNumber(row.fundedAmount)}`
+                : viewMode === "liquidated"
+                ? `-${formatNumber(row.fundedAmount)}`
+                : formatNumber(row.fundedAmount);
 
-              <td style={{ color: "#111827" }}>
-                {formatNumber(row.fundedAmount)}
-              </td>
+            const quantityColor =
+              viewMode === "overall"
+                ? "#111827"
+                : getChangeColor(row.qtyChange);
 
-              <td style={{ color: "#111827" }}>
-                {formatPercent(row.exposure)}
-              </td>
+            const amountColor =
+              viewMode === "added"
+                ? "#16a34a"
+                : viewMode === "liquidated"
+                ? "#dc2626"
+                : "#111827";
 
-              <td style={{ color: "#111827" }}>{formatNumber(row.ltp)}</td>
+            return (
+              <tr
+                key={row.company}
+                onClick={() => onStockClick(row)}
+                style={{
+                  cursor: "pointer",
+                  color: "#111827",
+                }}
+              >
+                <td style={{ color: "#111827" }}>
+                  <strong style={{ color: "#111827" }}>
+                    {row.company}
+                  </strong>
+                </td>
 
-              <td style={{ color: "#111827" }}>
-                {formatNumber(row.priceWithMtf)}
-              </td>
+                <td style={{ color: "#111827" }}>
+                  <div
+                    style={{
+                      color:
+                        showChanges && viewMode !== "overall"
+                          ? "#111827"
+                          : quantityColor,
+                      fontWeight:
+                        !showChanges && viewMode !== "overall"
+                          ? 700
+                          : 400,
+                    }}
+                  >
+                    {quantityValue}
+                  </div>
 
-              <td style={{ color: "#111827" }}>
-                {formatNumber(row.margin)}
+                  {showChanges && (
+                    <ChangeValue value={row.qtyChange} />
+                  )}
+                </td>
+
+                <td style={{ color: "#111827" }}>
+                  <div
+                    style={{
+                      color:
+                        showChanges && viewMode !== "overall"
+                          ? "#111827"
+                          : amountColor,
+                      fontWeight:
+                        !showChanges && viewMode !== "overall"
+                          ? 700
+                          : 400,
+                    }}
+                  >
+                    {amountValue}
+                  </div>
+
+                  {showChanges && (
+                    <ChangeValue value={row.amountChange} />
+                  )}
+                </td>
+
+                <td style={{ color: "#111827" }}>
+                  <div>{formatPercent(row.exposure)}</div>
+
+                  {showChanges && (
+                    <ChangeValue
+                      value={row.exposureChange}
+                      isPercent
+                    />
+                  )}
+                </td>
+
+                <td style={{ color: "#111827" }}>
+                  {formatNumber(row.ltp)}
+                </td>
+
+                <td style={{ color: "#111827" }}>
+                  {formatNumber(row.priceWithMtf)}
+                </td>
+
+                <td style={{ color: "#111827" }}>
+                  {formatNumber(row.margin)}
+                </td>
+              </tr>
+            );
+          })}
+
+          {sortedRows.length === 0 && (
+            <tr>
+              <td
+                colSpan={7}
+                style={{
+                  textAlign: "center",
+                  padding: "32px",
+                  color: "#6b7280",
+                }}
+              >
+                No stocks found.
               </td>
             </tr>
-          ))}
+          )}
         </tbody>
       </table>
     </div>

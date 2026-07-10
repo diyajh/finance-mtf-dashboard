@@ -28,6 +28,8 @@ type Metrics = {
   
   function MetricCards({ metrics, reportDate }: MetricCardsProps) {
     const netBookIsPositive = metrics.netBook >= 0;
+    const netBookSign = netBookIsPositive ? "+" : "-";
+    const netBookColor = netBookIsPositive ? "#16a34a" : "#dc2626";
   
     return (
       <div className="metric-grid">
@@ -59,19 +61,40 @@ type Metrics = {
   
         <div className="metric-card">
           <p>Positions Added</p>
-          <h2 className="positive-value">{formatCr(metrics.positionsAdded)}</h2>
+  
+          <h2
+            style={{
+              color: "#16a34a",
+              fontWeight: 700,
+            }}
+          >
+            {formatCr(metrics.positionsAdded)}
+          </h2>
         </div>
   
         <div className="metric-card">
           <p>Positions Liquidated</p>
-          <h2 className="negative-value">
+  
+          <h2
+            style={{
+              color: "#dc2626",
+              fontWeight: 700,
+            }}
+          >
             {formatCr(metrics.positionsLiquidated)}
           </h2>
         </div>
   
         <div className="metric-card">
           <p>{netBookIsPositive ? "Net Book Added" : "Net Book Liquidated"}</p>
-          <h2 className={netBookIsPositive ? "positive-value" : "negative-value"}>
+  
+          <h2
+            style={{
+              color: netBookColor,
+              fontWeight: 700,
+            }}
+          >
+            {netBookSign}
             {formatCr(Math.abs(metrics.netBook))}
           </h2>
         </div>
