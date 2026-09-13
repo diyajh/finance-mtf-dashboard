@@ -1,56 +1,68 @@
 type HeaderProps = {
-  searchTerm: string;
-  setSearchTerm: (value: string) => void;
   setCurrentPage: (page: string) => void;
 };
 
-function Header({
-  searchTerm,
-  setSearchTerm,
-  setCurrentPage,
-}: HeaderProps) {
+export default function Header({ setCurrentPage }: HeaderProps) {
   return (
-    <div
+    <header
       style={{
         display: "flex",
-        justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: "30px",
+        marginBottom: "32px",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-        <h1>MTF Insights</h1>
-
-        <button
-          onClick={() => setCurrentPage("upload")}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "26px",
+        }}
+      >
+        <div
           style={{
-            padding: "10px 18px",
-            borderRadius: "8px",
-            border: "1px solid #2563eb",
-            backgroundColor: "white",
-            color: "#2563eb",
-            fontWeight: 600,
+            display: "flex",
+            alignItems: "center",
+            gap: "14px",
             cursor: "pointer",
           }}
+          onClick={() => setCurrentPage("dashboard")}
+        >
+          <img
+            src="/wealthstreet-logo.png"
+            alt="Wealthstreet"
+            style={{
+              height: "64px",
+              width: "auto",
+              objectFit: "contain",
+            }}
+          />
+
+          <h1
+            style={{
+              margin: 0,
+              color: "#243B8A",
+              fontSize: "2rem",
+              fontWeight: 700,
+            }}
+          >
+            MTF Insights
+          </h1>
+        </div>
+
+        <span
+          style={{ cursor: "pointer", fontWeight: 600, color: "#243B8A" }}
+          onClick={() => setCurrentPage("upload")}
         >
           Add Data
-        </button>
-      </div>
+        </span>
 
-      <input
-        type="text"
-        placeholder="Search stock..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-        style={{
-          padding: "10px",
-          width: "250px",
-          borderRadius: "8px",
-          border: "1px solid #999",
-        }}
-      />
-    </div>
+        <span
+          style={{ cursor: "pointer", fontWeight: 600, color: "#243B8A" }}
+          onClick={() => setCurrentPage("upload-history")}
+        >
+          Upload History
+        </span>
+      </div>
+    </header>
   );
 }
-
-export default Header;
