@@ -9,8 +9,8 @@ import MtfTable, {
   type ChangeMode,
 } from "./components/MtfTable";
 import UploadPage from "./components/UploadPage";
-import StockDetailPage from "./components/StockDetailPage";
-import UploadHistoryPage from "./components/UploadHistoryPage";
+import StockDetailPage from "./components/StockDetailPage.tsx";
+import UploadHistoryPage from "./components/UploadHistoryPage.tsx";
 
 import {
   getLatestDashboardData,
