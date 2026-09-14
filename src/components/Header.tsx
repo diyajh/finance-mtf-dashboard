@@ -50,14 +50,33 @@ export default function Header({ setCurrentPage }: HeaderProps) {
         </div>
 
         <span
-          style={{ cursor: "pointer", fontWeight: 600, color: "#243B8A" }}
+          style={{
+            cursor: "pointer",
+            fontWeight: 600,
+            color: "#243B8A",
+          }}
           onClick={() => setCurrentPage("upload")}
         >
           Add Data
         </span>
 
         <span
-          style={{ cursor: "pointer", fontWeight: 600, color: "#243B8A" }}
+          style={{
+            cursor: "pointer",
+            fontWeight: 600,
+            color: "#243B8A",
+          }}
+          onClick={() => setCurrentPage("growth")}
+        >
+          Growth
+        </span>
+
+        <span
+          style={{
+            cursor: "pointer",
+            fontWeight: 600,
+            color: "#243B8A",
+          }}
           onClick={() => setCurrentPage("upload-history")}
         >
           Upload History

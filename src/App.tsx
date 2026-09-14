@@ -8,6 +8,7 @@ import MtfTable, {
   type ViewMode,
   type ChangeMode,
 } from "./components/MtfTable";
+import GrowthPage from "./components/GrowthPage";
 import UploadPage from "./components/UploadPage";
 import StockDetailPage from "./components/StockDetailPage.tsx";
 import UploadHistoryPage from "./components/UploadHistoryPage.tsx";
@@ -20,7 +21,8 @@ import {
 function App() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState("dashboard");
-  const [selectedStock, setSelectedStock] = useState<DashboardRow | null>(null);
+  const [selectedStock, setSelectedStock] =
+    useState<DashboardRow | null>(null);
 
   const [rows, setRows] = useState<DashboardRow[]>([]);
   const [reportDate, setReportDate] = useState("");
@@ -35,8 +37,11 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
 
-  const [viewMode, setViewMode] = useState<ViewMode>("overall");
-  const [changeMode, setChangeMode] = useState<ChangeMode>("none");
+  const [viewMode, setViewMode] =
+    useState<ViewMode>("overall");
+
+  const [changeMode, setChangeMode] =
+    useState<ChangeMode>("none");
 
   useEffect(() => {
     async function loadDashboard() {
@@ -44,14 +49,19 @@ function App() {
         setLoading(true);
         setErrorMessage("");
 
-        const data = await getLatestDashboardData(viewMode, changeMode);
+        const data = await getLatestDashboardData(
+          viewMode,
+          changeMode
+        );
 
         setRows(data.rows);
         setMetrics(data.metrics);
         setReportDate(data.report?.report_date || "");
       } catch (error) {
         console.error("Dashboard load failed:", error);
-        setErrorMessage("Could not load dashboard data. Please refresh.");
+        setErrorMessage(
+          "Could not load dashboard data. Please refresh."
+        );
       } finally {
         setLoading(false);
       }
@@ -70,10 +80,25 @@ function App() {
   }
 
   if (currentPage === "upload-history") {
-    return <UploadHistoryPage setCurrentPage={setCurrentPage} />;
+    return (
+      <UploadHistoryPage setCurrentPage={setCurrentPage} />
+    );
   }
 
-  if (currentPage === "stock-detail" && selectedStock) {
+  if (currentPage === "growth") {
+    return (
+      <GrowthPage
+        rows={rows}
+        searchTerm={searchTerm}
+        setCurrentPage={setCurrentPage}
+      />
+    );
+  }
+
+  if (
+    currentPage === "stock-detail" &&
+    selectedStock
+  ) {
     return (
       <StockDetailPage
         stock={selectedStock}
@@ -105,7 +130,10 @@ function App() {
 
       {!loading && !errorMessage && (
         <>
-          <MetricCards metrics={metrics} reportDate={reportDate} />
+          <MetricCards
+            metrics={metrics}
+            reportDate={reportDate}
+          />
 
           <TopStockCards
             rows={rows.slice(0, 5)}

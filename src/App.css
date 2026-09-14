@@ -253,3 +253,54 @@ input[type="text"]:focus {
 .cancel-btn:hover {
   background: #f5f8ff;
 }
+.growth-filter-box {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  background: #ffffff;
+  border: 1px solid #dbe8f2;
+  border-radius: 14px;
+  box-shadow: 0 4px 14px rgba(36, 59, 138, 0.06);
+}
+
+.growth-filter-button {
+  padding: 12px 14px;
+  border: 1px solid #2684c2;
+  border-radius: 9px;
+  background: #2684c2;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.growth-filter-button:hover {
+  background: #17699f;
+}
+
+.growth-filter-button.active {
+  background: #124f7d;
+  border-color: #124f7d;
+}
+
+.growth-filter-box input {
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #111827;
+}
+
+.growth-filter-box input:focus {
+  outline: none;
+  border-color: #2684c2;
+  box-shadow: 0 0 0 3px rgba(38, 132, 194, 0.15);
+}
+
+.growth-filter-box small {
+  color: #6b7280;
+  line-height: 1.4;
+}
