@@ -1,12 +1,19 @@
 import { supabase } from "../lib/supabase";
-import type { ViewMode, ChangeMode } from "../components/MtfTable";
+import type {
+  ViewMode,
+  ChangeMode,
+} from "../components/MtfTable";
+
+export const PAGE_SIZE = 150;
 
 export type DashboardRow = {
+  stockId: string;
   company: string;
 
   fundedQty: number | null;
   fundedAmount: number | null;
   exposure: number | null;
+
   ltp: number | null;
   priceWithMtf: number | null;
   margin: number | null;
@@ -19,6 +26,15 @@ export type DashboardRow = {
   amountChangePercent: number | null;
 };
 
+export type DashboardPagination = {
+  page: number;
+  pageSize: number;
+  totalRows: number;
+  totalPages: number;
+  from: number;
+  to: number;
+};
+
 type WeeklyReport = {
   id: string;
   report_date: string;
@@ -27,7 +43,13 @@ type WeeklyReport = {
   created_at: string;
 };
 
-type HoldingRaw = {
+type HoldingSummaryRaw = {
+  stock_id: string;
+  funded_qty: number | null;
+  funded_amount_cr: number | null;
+};
+
+type HoldingDetailRaw = {
   stock_id: string;
   funded_qty: number | null;
   funded_amount_cr: number | null;
@@ -36,18 +58,29 @@ type HoldingRaw = {
   margin_multiple: number | null;
 };
 
-type HoldingRow = DashboardRow & {
+type HoldingSummary = {
   stockId: string;
+  fundedQty: number;
+  fundedAmount: number;
 };
 
-type ReportWithRows = {
+type HoldingDetail = {
+  stockId: string;
+  fundedQty: number;
+  fundedAmount: number;
+  ltp: number | null;
+  priceWithMtf: number | null;
+  margin: number | null;
+};
+
+type ReportSummary = {
   report: WeeklyReport;
-  rows: HoldingRow[];
+  rows: HoldingSummary[];
+  totalBook: number;
 };
 
 type ComparisonRow = {
   stockId: string;
-  company: string;
 
   currentQty: number;
   previousQty: number;
@@ -62,13 +95,11 @@ type ComparisonRow = {
   currentExposure: number;
   previousExposure: number;
   exposureChange: number;
-
-  ltp: number | null;
-  priceWithMtf: number | null;
-  margin: number | null;
 };
 
-function toNumber(value: number | null | undefined) {
+function toNumber(
+  value: number | null | undefined
+) {
   return value ?? 0;
 }
 
@@ -81,177 +112,513 @@ function calculatePercentageChange(
   }
 
   return Number(
-    (((currentValue - previousValue) / Math.abs(previousValue)) * 100).toFixed(
-      2
-    )
+    (
+      ((currentValue - previousValue) /
+        Math.abs(previousValue)) *
+      100
+    ).toFixed(2)
   );
 }
 
-function chunkArray<T>(array: T[], size: number) {
+function chunkArray<T>(
+  array: T[],
+  size: number
+) {
   const chunks: T[][] = [];
 
-  for (let index = 0; index < array.length; index += size) {
-    chunks.push(array.slice(index, index + size));
+  for (
+    let index = 0;
+    index < array.length;
+    index += size
+  ) {
+    chunks.push(
+      array.slice(
+        index,
+        index + size
+      )
+    );
   }
 
   return chunks;
 }
 
-function calculateExposure(rows: HoldingRow[]) {
-  const totalBook = rows.reduce(
-    (sum, row) => sum + toNumber(row.fundedAmount),
+function calculateTotalBook(
+  rows: HoldingSummary[]
+) {
+  return rows.reduce(
+    (sum, row) =>
+      sum +
+      toNumber(
+        row.fundedAmount
+      ),
     0
   );
-
-  const rowsWithExposure: HoldingRow[] = rows.map((row) => ({
-    ...row,
-    exposure:
-      totalBook > 0
-        ? Number(
-            ((toNumber(row.fundedAmount) / totalBook) * 100).toFixed(2)
-          )
-        : 0,
-  }));
-
-  return {
-    totalBook,
-    rowsWithExposure,
-  };
 }
 
-async function getHoldingsForReport(
-  reportId: string
-): Promise<HoldingRow[]> {
-  const { data: holdings, error: holdingsError } = await supabase
-    .from("mtf_holdings")
-    .select(`
-      stock_id,
-      funded_qty,
-      funded_amount_cr,
-      ltp,
-      price_with_mtf,
-      margin_multiple
-    `)
-    .eq("report_id", reportId)
-    .order("funded_amount_cr", { ascending: false })
-    .range(0, 3000);
-
-  if (holdingsError) {
-    throw holdingsError;
+function calculateExposure(
+  fundedAmount: number,
+  totalBook: number
+) {
+  if (totalBook <= 0) {
+    return 0;
   }
 
-  const holdingRows = (holdings || []) as HoldingRaw[];
-
-  if (holdingRows.length === 0) {
-    return [];
-  }
-
-  const stockIds = Array.from(
-    new Set(
-      holdingRows
-        .map((row) => row.stock_id)
-        .filter((stockId): stockId is string => Boolean(stockId))
-    )
+  return Number(
+    (
+      (fundedAmount /
+        totalBook) *
+      100
+    ).toFixed(2)
   );
+}
 
-  const stockNameById = new Map<string, string>();
+async function getHoldingSummaryForReport(
+  reportId: string
+): Promise<HoldingSummary[]> {
+  const batchSize = 1000;
 
-  for (const chunk of chunkArray(stockIds, 300)) {
-    const { data: stocks, error: stocksError } = await supabase
-      .from("stocks")
-      .select("id, company_name")
-      .in("id", chunk);
+  let from = 0;
+  let hasMore = true;
 
-    if (stocksError) {
-      throw stocksError;
+  const allRows: HoldingSummary[] = [];
+
+  while (hasMore) {
+    const to =
+      from +
+      batchSize -
+      1;
+
+    const {
+      data,
+      error,
+    } = await supabase
+      .from("mtf_holdings")
+      .select(`
+        stock_id,
+        funded_qty,
+        funded_amount_cr
+      `)
+      .eq(
+        "report_id",
+        reportId
+      )
+      .range(
+        from,
+        to
+      );
+
+    if (error) {
+      throw error;
     }
 
-    for (const stock of stocks || []) {
-      stockNameById.set(stock.id, stock.company_name);
+    const batch =
+      (data ||
+        []) as HoldingSummaryRaw[];
+
+    allRows.push(
+      ...batch.map(
+        (row) => ({
+          stockId:
+            row.stock_id,
+
+          fundedQty:
+            toNumber(
+              row.funded_qty
+            ),
+
+          fundedAmount:
+            toNumber(
+              row.funded_amount_cr
+            ),
+        })
+      )
+    );
+
+    if (
+      batch.length <
+      batchSize
+    ) {
+      hasMore =
+        false;
+    } else {
+      from +=
+        batchSize;
     }
   }
 
-  return holdingRows.map((holding) => ({
-    stockId: holding.stock_id,
-    company: stockNameById.get(holding.stock_id) || "Unknown",
-
-    fundedQty: holding.funded_qty,
-    fundedAmount: holding.funded_amount_cr,
-    exposure: null,
-    ltp: holding.ltp,
-    priceWithMtf: holding.price_with_mtf,
-    margin: holding.margin_multiple,
-
-    qtyChange: null,
-    amountChange: null,
-    exposureChange: null,
-
-    qtyChangePercent: null,
-    amountChangePercent: null,
-  }));
+  return allRows;
 }
 
-async function getLatestTwoReportsWithRows() {
-  const { data: reports, error } = await supabase
-    .from("weekly_reports")
+async function getHoldingDetailsForStocks(
+  reportId: string,
+  stockIds: string[]
+): Promise<
+  Map<
+    string,
+    HoldingDetail
+  >
+> {
+  const result =
+    new Map<
+      string,
+      HoldingDetail
+    >();
+
+  if (
+    stockIds.length ===
+    0
+  ) {
+    return result;
+  }
+
+  for (
+    const chunk of
+    chunkArray(
+      stockIds,
+      300
+    )
+  ) {
+    const {
+      data,
+      error,
+    } = await supabase
+      .from(
+        "mtf_holdings"
+      )
+      .select(`
+        stock_id,
+        funded_qty,
+        funded_amount_cr,
+        ltp,
+        price_with_mtf,
+        margin_multiple
+      `)
+      .eq(
+        "report_id",
+        reportId
+      )
+      .in(
+        "stock_id",
+        chunk
+      );
+
+    if (error) {
+      throw error;
+    }
+
+    for (
+      const row of
+      (data ||
+        []) as HoldingDetailRaw[]
+    ) {
+      result.set(
+        row.stock_id,
+        {
+          stockId:
+            row.stock_id,
+
+          fundedQty:
+            toNumber(
+              row.funded_qty
+            ),
+
+          fundedAmount:
+            toNumber(
+              row.funded_amount_cr
+            ),
+
+          ltp:
+            row.ltp,
+
+          priceWithMtf:
+            row.price_with_mtf,
+
+          margin:
+            row.margin_multiple,
+        }
+      );
+    }
+  }
+
+  return result;
+}
+
+async function getStockNames(
+  stockIds: string[]
+): Promise<
+  Map<string, string>
+> {
+  const stockNameById =
+    new Map<
+      string,
+      string
+    >();
+
+  if (
+    stockIds.length ===
+    0
+  ) {
+    return stockNameById;
+  }
+
+  for (
+    const chunk of
+    chunkArray(
+      stockIds,
+      300
+    )
+  ) {
+    const {
+      data,
+      error,
+    } = await supabase
+      .from("stocks")
+      .select(
+        "id, company_name"
+      )
+      .in(
+        "id",
+        chunk
+      );
+
+    if (error) {
+      throw error;
+    }
+
+    for (
+      const stock of
+      data || []
+    ) {
+      stockNameById.set(
+        stock.id,
+        stock.company_name ||
+          "Unknown"
+      );
+    }
+  }
+
+  return stockNameById;
+}
+
+/*
+ * GLOBAL SEARCH
+ *
+ * Searches the complete stocks table rather than
+ * only the 150 rows currently visible.
+ *
+ * Searches both:
+ * - company_name
+ * - symbol
+ */
+async function getMatchingStockIds(
+  searchTerm: string
+): Promise<
+  Set<string> | null
+> {
+  const cleaned =
+    searchTerm.trim();
+
+  if (!cleaned) {
+    return null;
+  }
+
+  const [
+    companyResult,
+    symbolResult,
+  ] =
+    await Promise.all([
+      supabase
+        .from("stocks")
+        .select("id")
+        .ilike(
+          "company_name",
+          `%${cleaned}%`
+        ),
+
+      supabase
+        .from("stocks")
+        .select("id")
+        .ilike(
+          "symbol",
+          `%${cleaned}%`
+        ),
+    ]);
+
+  if (
+    companyResult.error
+  ) {
+    throw companyResult.error;
+  }
+
+  if (
+    symbolResult.error
+  ) {
+    throw symbolResult.error;
+  }
+
+  const ids =
+    new Set<string>();
+
+  for (
+    const stock of
+    companyResult.data ||
+    []
+  ) {
+    ids.add(stock.id);
+  }
+
+  for (
+    const stock of
+    symbolResult.data ||
+    []
+  ) {
+    ids.add(stock.id);
+  }
+
+  return ids;
+}
+
+async function getLatestTwoReportSummaries() {
+  const {
+    data: reports,
+    error,
+  } = await supabase
+    .from(
+      "weekly_reports"
+    )
     .select("*")
-    .order("report_date", { ascending: false })
-    .order("created_at", { ascending: false })
+    .order(
+      "report_date",
+      {
+        ascending:
+          false,
+      }
+    )
+    .order(
+      "created_at",
+      {
+        ascending:
+          false,
+      }
+    )
     .limit(100);
 
   if (error) {
     throw error;
   }
 
-  const reportsWithRows: ReportWithRows[] = [];
+  const found: ReportSummary[] =
+    [];
 
-  for (const report of (reports || []) as WeeklyReport[]) {
-    const rows = await getHoldingsForReport(report.id);
+  for (
+    const report of
+    (reports ||
+      []) as WeeklyReport[]
+  ) {
+    const rows =
+      await getHoldingSummaryForReport(
+        report.id
+      );
 
-    if (rows.length > 0) {
-      reportsWithRows.push({
+    if (
+      rows.length >
+      0
+    ) {
+      found.push({
         report,
         rows,
+
+        totalBook:
+          calculateTotalBook(
+            rows
+          ),
       });
     }
 
-    if (reportsWithRows.length === 2) {
+    if (
+      found.length ===
+      2
+    ) {
       break;
     }
   }
 
-  if (reportsWithRows.length === 0) {
-    throw new Error("No report with holdings was found.");
+  if (
+    found.length ===
+    0
+  ) {
+    throw new Error(
+      "No report with holdings was found."
+    );
   }
 
   return {
-    latest: reportsWithRows[0],
-    previous: reportsWithRows[1] || null,
+    latest:
+      found[0],
+
+    previous:
+      found[1] ||
+      null,
   };
 }
 
 async function getReportNearTargetDate(
   targetDate: string
-): Promise<ReportWithRows | null> {
-  const { data: reports, error } = await supabase
-    .from("weekly_reports")
+): Promise<ReportSummary | null> {
+  const {
+    data: reports,
+    error,
+  } = await supabase
+    .from(
+      "weekly_reports"
+    )
     .select("*")
-    .lte("report_date", targetDate)
-    .order("report_date", { ascending: false })
-    .order("created_at", { ascending: false })
+    .lte(
+      "report_date",
+      targetDate
+    )
+    .order(
+      "report_date",
+      {
+        ascending:
+          false,
+      }
+    )
+    .order(
+      "created_at",
+      {
+        ascending:
+          false,
+      }
+    )
     .limit(30);
 
   if (error) {
     throw error;
   }
 
-  for (const report of (reports || []) as WeeklyReport[]) {
-    const rows = await getHoldingsForReport(report.id);
+  for (
+    const report of
+    (reports ||
+      []) as WeeklyReport[]
+  ) {
+    const rows =
+      await getHoldingSummaryForReport(
+        report.id
+      );
 
-    if (rows.length > 0) {
+    if (
+      rows.length >
+      0
+    ) {
       return {
         report,
         rows,
+
+        totalBook:
+          calculateTotalBook(
+            rows
+          ),
       };
     }
   }
@@ -261,278 +628,772 @@ async function getReportNearTargetDate(
 
 async function getComparisonReport(
   changeMode: ChangeMode,
-  latest: ReportWithRows,
-  immediatePrevious: ReportWithRows | null
+  latest: ReportSummary,
+  immediatePrevious:
+    | ReportSummary
+    | null
 ) {
-  if (changeMode === "none") {
+  if (
+    changeMode ===
+    "none"
+  ) {
     return immediatePrevious;
   }
 
-  const daysBack = changeMode === "weekly" ? 7 : 30;
-  const targetDate = new Date(`${latest.report.report_date}T00:00:00`);
+  const daysBack =
+    changeMode ===
+    "weekly"
+      ? 7
+      : 30;
 
-  targetDate.setDate(targetDate.getDate() - daysBack);
+  const targetDate =
+    new Date(
+      `${latest.report.report_date}T00:00:00`
+    );
 
-  return getReportNearTargetDate(targetDate.toISOString().slice(0, 10));
+  targetDate.setDate(
+    targetDate.getDate() -
+      daysBack
+  );
+
+  return getReportNearTargetDate(
+    targetDate
+      .toISOString()
+      .slice(0, 10)
+  );
 }
 
 function compareReports(
-  latestRows: HoldingRow[],
-  previousRows: HoldingRow[],
-  latestRowsWithExposure: HoldingRow[],
-  previousRowsWithExposure: HoldingRow[]
-) {
-  const currentByStockId = new Map(
-    latestRows.map((row) => [row.stockId, row])
-  );
+  latest: ReportSummary,
+  previous: ReportSummary
+): ComparisonRow[] {
+  const currentByStockId =
+    new Map(
+      latest.rows.map(
+        (row) => [
+          row.stockId,
+          row,
+        ]
+      )
+    );
 
-  const previousByStockId = new Map(
-    previousRows.map((row) => [row.stockId, row])
-  );
+  const previousByStockId =
+    new Map(
+      previous.rows.map(
+        (row) => [
+          row.stockId,
+          row,
+        ]
+      )
+    );
 
-  const currentExposureByStockId = new Map(
-    latestRowsWithExposure.map((row) => [
-      row.stockId,
-      toNumber(row.exposure),
-    ])
-  );
+  const allStockIds =
+    new Set([
+      ...currentByStockId.keys(),
+      ...previousByStockId.keys(),
+    ]);
 
-  const previousExposureByStockId = new Map(
-    previousRowsWithExposure.map((row) => [
-      row.stockId,
-      toNumber(row.exposure),
-    ])
-  );
+  const comparisonRows:
+    ComparisonRow[] =
+    [];
 
-  const allStockIds = new Set([
-    ...currentByStockId.keys(),
-    ...previousByStockId.keys(),
-  ]);
+  for (
+    const stockId of
+    allStockIds
+  ) {
+    const current =
+      currentByStockId.get(
+        stockId
+      );
 
-  const comparisonRows: ComparisonRow[] = [];
+    const previousRow =
+      previousByStockId.get(
+        stockId
+      );
 
-  for (const stockId of allStockIds) {
-    const current = currentByStockId.get(stockId);
-    const previous = previousByStockId.get(stockId);
+    const currentQty =
+      current?.fundedQty ??
+      0;
 
-    const currentQty = toNumber(current?.fundedQty);
-    const previousQty = toNumber(previous?.fundedQty);
-    const qtyChange = currentQty - previousQty;
+    const previousQty =
+      previousRow?.fundedQty ??
+      0;
 
-    const currentAmount = toNumber(current?.fundedAmount);
-    const previousAmount = toNumber(previous?.fundedAmount);
-    const amountChange = currentAmount - previousAmount;
+    const currentAmount =
+      current?.fundedAmount ??
+      0;
+
+    const previousAmount =
+      previousRow?.fundedAmount ??
+      0;
+
+    const qtyChange =
+      currentQty -
+      previousQty;
+
+    const amountChange =
+      currentAmount -
+      previousAmount;
 
     const currentExposure =
-      currentExposureByStockId.get(stockId) ?? 0;
+      calculateExposure(
+        currentAmount,
+        latest.totalBook
+      );
 
     const previousExposure =
-      previousExposureByStockId.get(stockId) ?? 0;
+      calculateExposure(
+        previousAmount,
+        previous.totalBook
+      );
 
     comparisonRows.push({
       stockId,
-      company: current?.company || previous?.company || "Unknown",
 
       currentQty,
       previousQty,
       qtyChange,
-      qtyChangePercent: calculatePercentageChange(
-        currentQty,
-        previousQty
-      ),
+
+      qtyChangePercent:
+        calculatePercentageChange(
+          currentQty,
+          previousQty
+        ),
 
       currentAmount,
       previousAmount,
       amountChange,
-      amountChangePercent: calculatePercentageChange(
-        currentAmount,
-        previousAmount
-      ),
+
+      amountChangePercent:
+        calculatePercentageChange(
+          currentAmount,
+          previousAmount
+        ),
 
       currentExposure,
       previousExposure,
-      exposureChange: Number(
-        (currentExposure - previousExposure).toFixed(2)
-      ),
 
-      ltp: current?.ltp ?? previous?.ltp ?? null,
-      priceWithMtf:
-        current?.priceWithMtf ?? previous?.priceWithMtf ?? null,
-      margin: current?.margin ?? previous?.margin ?? null,
+      exposureChange:
+        Number(
+          (
+            currentExposure -
+            previousExposure
+          ).toFixed(2)
+        ),
     });
   }
 
   return comparisonRows;
 }
 
-function getOverallRows(
-  latestRowsWithExposure: HoldingRow[],
-  comparisonRows: ComparisonRow[]
-): DashboardRow[] {
-  const comparisonByStockId = new Map(
-    comparisonRows.map((row) => [row.stockId, row])
+function clampPage(
+  page: number,
+  totalPages: number
+) {
+  if (
+    totalPages <= 0
+  ) {
+    return 1;
+  }
+
+  return Math.min(
+    Math.max(
+      page,
+      1
+    ),
+    totalPages
   );
-
-  return latestRowsWithExposure.map((row) => {
-    const comparison = comparisonByStockId.get(row.stockId);
-
-    return {
-      company: row.company,
-
-      fundedQty: row.fundedQty,
-      fundedAmount: row.fundedAmount,
-      exposure: row.exposure,
-      ltp: row.ltp,
-      priceWithMtf: row.priceWithMtf,
-      margin: row.margin,
-
-      qtyChange: comparison?.qtyChange ?? 0,
-      amountChange: comparison?.amountChange ?? 0,
-      exposureChange: comparison?.exposureChange ?? 0,
-
-      qtyChangePercent: comparison?.qtyChangePercent ?? null,
-      amountChangePercent: comparison?.amountChangePercent ?? null,
-    };
-  });
-}
-
-function getAddedRows(
-  comparisonRows: ComparisonRow[]
-): DashboardRow[] {
-  return comparisonRows
-    .filter((row) => row.amountChange > 0)
-    .sort((a, b) => b.amountChange - a.amountChange)
-    .map((row) => ({
-      company: row.company,
-
-      fundedQty: row.qtyChange,
-      fundedAmount: row.amountChange,
-      exposure: row.currentExposure,
-
-      ltp: row.ltp,
-      priceWithMtf: row.priceWithMtf,
-      margin: row.margin,
-
-      qtyChange: row.qtyChange,
-      amountChange: row.amountChange,
-      exposureChange: row.exposureChange,
-
-      qtyChangePercent: row.qtyChangePercent,
-      amountChangePercent: row.amountChangePercent,
-    }));
-}
-
-function getLiquidatedRows(
-  comparisonRows: ComparisonRow[]
-): DashboardRow[] {
-  return comparisonRows
-    .filter((row) => row.amountChange < 0)
-    .sort(
-      (a, b) =>
-        Math.abs(b.amountChange) - Math.abs(a.amountChange)
-    )
-    .map((row) => ({
-      company: row.company,
-
-      fundedQty: row.qtyChange,
-      fundedAmount: row.amountChange,
-      exposure: row.currentExposure,
-
-      ltp: row.ltp,
-      priceWithMtf: row.priceWithMtf,
-      margin: row.margin,
-
-      qtyChange: row.qtyChange,
-      amountChange: row.amountChange,
-      exposureChange: row.exposureChange,
-
-      qtyChangePercent: row.qtyChangePercent,
-      amountChangePercent: row.amountChangePercent,
-    }));
 }
 
 export async function getLatestDashboardData(
-  viewMode: ViewMode = "overall",
-  changeMode: ChangeMode = "none"
+  viewMode: ViewMode =
+    "overall",
+
+  changeMode: ChangeMode =
+    "none",
+
+  requestedPage = 1,
+
+  searchTerm = ""
 ) {
-  const { latest, previous } = await getLatestTwoReportsWithRows();
-
-  const latestReport = latest.report;
-  const latestRows = latest.rows;
-
   const {
-    totalBook,
-    rowsWithExposure: latestRowsWithExposure,
-  } = calculateExposure(latestRows);
-
-  const comparisonReport = await getComparisonReport(
-    changeMode,
     latest,
-    previous
-  );
+    previous,
+  } =
+    await getLatestTwoReportSummaries();
 
-  if (!comparisonReport) {
-    return {
-      report: latestReport,
-      comparisonReport: null,
-      rows: latestRowsWithExposure,
-      metrics: {
-        industryBook: totalBook,
-        positionsAdded: 0,
-        positionsLiquidated: 0,
-        netBook: 0,
-      },
+  const comparisonReport =
+    await getComparisonReport(
+      changeMode,
+      latest,
+      previous
+    );
+
+  let comparisonRows:
+    ComparisonRow[] =
+    [];
+
+  if (
+    comparisonReport
+  ) {
+    comparisonRows =
+      compareReports(
+        latest,
+        comparisonReport
+      );
+  }
+
+  const comparisonByStockId =
+    new Map(
+      comparisonRows.map(
+        (row) => [
+          row.stockId,
+          row,
+        ]
+      )
+    );
+
+  /*
+   * GLOBAL TOP 5
+   *
+   * Search and pagination do not affect these.
+   */
+  const topStockSummaries =
+    [...latest.rows]
+      .sort(
+        (a, b) =>
+          b.fundedAmount -
+          a.fundedAmount
+      )
+      .slice(0, 5);
+
+  const topStockIds =
+    topStockSummaries.map(
+      (row) =>
+        row.stockId
+    );
+
+  const [
+    topStockNames,
+    topStockDetails,
+  ] =
+    await Promise.all([
+      getStockNames(
+        topStockIds
+      ),
+
+      getHoldingDetailsForStocks(
+        latest.report.id,
+        topStockIds
+      ),
+    ]);
+
+  const topStocks:
+    DashboardRow[] =
+    topStockSummaries.map(
+      (row) => {
+        const detail =
+          topStockDetails.get(
+            row.stockId
+          );
+
+        const comparison =
+          comparisonByStockId.get(
+            row.stockId
+          );
+
+        return {
+          stockId:
+            row.stockId,
+
+          company:
+            topStockNames.get(
+              row.stockId
+            ) ||
+            "Unknown",
+
+          fundedQty:
+            row.fundedQty,
+
+          fundedAmount:
+            row.fundedAmount,
+
+          exposure:
+            calculateExposure(
+              row.fundedAmount,
+              latest.totalBook
+            ),
+
+          ltp:
+            detail?.ltp ??
+            null,
+
+          priceWithMtf:
+            detail?.priceWithMtf ??
+            null,
+
+          margin:
+            detail?.margin ??
+            null,
+
+          qtyChange:
+            comparison?.qtyChange ??
+            0,
+
+          amountChange:
+            comparison?.amountChange ??
+            0,
+
+          exposureChange:
+            comparison?.exposureChange ??
+            0,
+
+          qtyChangePercent:
+            comparison?.qtyChangePercent ??
+            null,
+
+          amountChangePercent:
+            comparison?.amountChangePercent ??
+            null,
+        };
+      }
+    );
+
+  let selectedRows: {
+    stockId: string;
+
+    fundedQty: number;
+    fundedAmount: number;
+    exposure: number;
+
+    qtyChange:
+      | number
+      | null;
+
+    amountChange:
+      | number
+      | null;
+
+    exposureChange:
+      | number
+      | null;
+
+    qtyChangePercent:
+      | number
+      | null;
+
+    amountChangePercent:
+      | number
+      | null;
+  }[] = [];
+
+  if (
+    viewMode ===
+    "overall"
+  ) {
+    selectedRows =
+      latest.rows
+        .map(
+          (row) => {
+            const comparison =
+              comparisonByStockId.get(
+                row.stockId
+              );
+
+            return {
+              stockId:
+                row.stockId,
+
+              fundedQty:
+                row.fundedQty,
+
+              fundedAmount:
+                row.fundedAmount,
+
+              exposure:
+                calculateExposure(
+                  row.fundedAmount,
+                  latest.totalBook
+                ),
+
+              qtyChange:
+                comparison?.qtyChange ??
+                0,
+
+              amountChange:
+                comparison?.amountChange ??
+                0,
+
+              exposureChange:
+                comparison?.exposureChange ??
+                0,
+
+              qtyChangePercent:
+                comparison?.qtyChangePercent ??
+                null,
+
+              amountChangePercent:
+                comparison?.amountChangePercent ??
+                null,
+            };
+          }
+        )
+        .sort(
+          (a, b) =>
+            b.fundedAmount -
+            a.fundedAmount
+        );
+  }
+
+  if (
+    viewMode ===
+    "added"
+  ) {
+    selectedRows =
+      comparisonRows
+        .filter(
+          (row) =>
+            row.amountChange >
+            0
+        )
+        .sort(
+          (a, b) =>
+            b.amountChange -
+            a.amountChange
+        )
+        .map(
+          (row) => ({
+            stockId:
+              row.stockId,
+
+            fundedQty:
+              row.qtyChange,
+
+            fundedAmount:
+              row.amountChange,
+
+            exposure:
+              row.currentExposure,
+
+            qtyChange:
+              row.qtyChange,
+
+            amountChange:
+              row.amountChange,
+
+            exposureChange:
+              row.exposureChange,
+
+            qtyChangePercent:
+              row.qtyChangePercent,
+
+            amountChangePercent:
+              row.amountChangePercent,
+          })
+        );
+  }
+
+  if (
+    viewMode ===
+    "liquidated"
+  ) {
+    selectedRows =
+      comparisonRows
+        .filter(
+          (row) =>
+            row.amountChange <
+            0
+        )
+        .sort(
+          (a, b) =>
+            Math.abs(
+              b.amountChange
+            ) -
+            Math.abs(
+              a.amountChange
+            )
+        )
+        .map(
+          (row) => ({
+            stockId:
+              row.stockId,
+
+            fundedQty:
+              row.qtyChange,
+
+            fundedAmount:
+              row.amountChange,
+
+            exposure:
+              row.currentExposure,
+
+            qtyChange:
+              row.qtyChange,
+
+            amountChange:
+              row.amountChange,
+
+            exposureChange:
+              row.exposureChange,
+
+            qtyChangePercent:
+              row.qtyChangePercent,
+
+            amountChangePercent:
+              row.amountChangePercent,
+          })
+        );
+  }
+
+  /*
+   * GLOBAL SEARCH FILTER
+   *
+   * This happens before pagination.
+   */
+  const matchingStockIds =
+    await getMatchingStockIds(
+      searchTerm
+    );
+
+  if (
+    matchingStockIds !==
+    null
+  ) {
+    selectedRows =
+      selectedRows.filter(
+        (row) =>
+          matchingStockIds.has(
+            row.stockId
+          )
+      );
+  }
+
+  /*
+   * Pagination
+   */
+  const totalRows =
+    selectedRows.length;
+
+  const totalPages =
+    Math.max(
+      1,
+      Math.ceil(
+        totalRows /
+          PAGE_SIZE
+      )
+    );
+
+  const page =
+    clampPage(
+      requestedPage,
+      totalPages
+    );
+
+  const startIndex =
+    (page - 1) *
+    PAGE_SIZE;
+
+  const endIndex =
+    startIndex +
+    PAGE_SIZE;
+
+  const pageRows =
+    selectedRows.slice(
+      startIndex,
+      endIndex
+    );
+
+  const visibleStockIds =
+    pageRows.map(
+      (row) =>
+        row.stockId
+    );
+
+  const [
+    stockNames,
+    latestDetails,
+    previousDetails,
+  ] =
+    await Promise.all([
+      getStockNames(
+        visibleStockIds
+      ),
+
+      getHoldingDetailsForStocks(
+        latest.report.id,
+        visibleStockIds
+      ),
+
+      comparisonReport
+        ? getHoldingDetailsForStocks(
+            comparisonReport
+              .report.id,
+            visibleStockIds
+          )
+        : Promise.resolve(
+            new Map<
+              string,
+              HoldingDetail
+            >()
+          ),
+    ]);
+
+  const dashboardRows:
+    DashboardRow[] =
+    pageRows.map(
+      (row) => {
+        const latestDetail =
+          latestDetails.get(
+            row.stockId
+          );
+
+        const previousDetail =
+          previousDetails.get(
+            row.stockId
+          );
+
+        const detail =
+          latestDetail ??
+          previousDetail;
+
+        return {
+          stockId:
+            row.stockId,
+
+          company:
+            stockNames.get(
+              row.stockId
+            ) ||
+            "Unknown",
+
+          fundedQty:
+            row.fundedQty,
+
+          fundedAmount:
+            row.fundedAmount,
+
+          exposure:
+            row.exposure,
+
+          ltp:
+            detail?.ltp ??
+            null,
+
+          priceWithMtf:
+            detail?.priceWithMtf ??
+            null,
+
+          margin:
+            detail?.margin ??
+            null,
+
+          qtyChange:
+            row.qtyChange,
+
+          amountChange:
+            row.amountChange,
+
+          exposureChange:
+            row.exposureChange,
+
+          qtyChangePercent:
+            row.qtyChangePercent,
+
+          amountChangePercent:
+            row.amountChangePercent,
+        };
+      }
+    );
+
+  /*
+   * Metrics remain GLOBAL.
+   *
+   * Search and pagination do not affect
+   * dashboard metric cards.
+   */
+  const positionsAdded =
+    comparisonRows.reduce(
+      (
+        sum,
+        row
+      ) =>
+        sum +
+        Math.max(
+          row.amountChange,
+          0
+        ),
+      0
+    );
+
+  const positionsLiquidated =
+    comparisonRows.reduce(
+      (
+        sum,
+        row
+      ) =>
+        sum +
+        Math.abs(
+          Math.min(
+            row.amountChange,
+            0
+          )
+        ),
+      0
+    );
+
+  const pagination:
+    DashboardPagination =
+    {
+      page,
+
+      pageSize:
+        PAGE_SIZE,
+
+      totalRows,
+
+      totalPages,
+
+      from:
+        totalRows ===
+        0
+          ? 0
+          : startIndex +
+            1,
+
+      to:
+        Math.min(
+          startIndex +
+            PAGE_SIZE,
+          totalRows
+        ),
     };
-  }
-
-  const {
-    rowsWithExposure: previousRowsWithExposure,
-  } = calculateExposure(comparisonReport.rows);
-
-  const comparisonRows = compareReports(
-    latestRows,
-    comparisonReport.rows,
-    latestRowsWithExposure,
-    previousRowsWithExposure
-  );
-
-  const overallRows = getOverallRows(
-    latestRowsWithExposure,
-    comparisonRows
-  );
-
-  const addedRows = getAddedRows(comparisonRows);
-  const liquidatedRows = getLiquidatedRows(comparisonRows);
-
-  const positionsAdded = addedRows.reduce(
-    (sum, row) => sum + Math.max(toNumber(row.amountChange), 0),
-    0
-  );
-
-  const positionsLiquidated = liquidatedRows.reduce(
-    (sum, row) => sum + Math.abs(toNumber(row.amountChange)),
-    0
-  );
-
-  let displayRows: DashboardRow[] = overallRows;
-
-  if (viewMode === "added") {
-    displayRows = addedRows;
-  }
-
-  if (viewMode === "liquidated") {
-    displayRows = liquidatedRows;
-  }
 
   return {
-    report: latestReport,
-    comparisonReport: comparisonReport.report,
-    rows: displayRows,
+    report:
+      latest.report,
+
+    comparisonReport:
+      comparisonReport?.report ??
+      null,
+
+    rows:
+      dashboardRows,
+
+    topStocks,
+
+    pagination,
+
     metrics: {
-      industryBook: totalBook,
+      industryBook:
+        latest.totalBook,
+
       positionsAdded,
+
       positionsLiquidated,
-      netBook: positionsAdded - positionsLiquidated,
+
+      netBook:
+        positionsAdded -
+        positionsLiquidated,
     },
   };
 }
