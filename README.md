@@ -1,73 +1,85 @@
-# React + TypeScript + Vite
+# Finance MTF Dashboard
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A web dashboard that turns weekly Margin Trading Facility (MTF) holding reports into stock rankings, summary metrics, and per-stock history. Built for an enterprise client, it replaces manually reviewing report spreadsheets with a searchable view of the latest positions and how they change over time.
 
-Currently, two official plugins are available:
+The dataset covers about 3.24 million holding records across 3,303 stocks and 2,041 weekly reports (January 2018 to June 2026).
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Features
 
-## React Compiler
+- **Summary metrics:** industry book, positions added, positions liquidated, and net book for the latest report date.
+- **Top stocks:** cards for the five largest positions, linked to each stock's detail page.
+- **MTF table:** search by stock, sort by name or amount, and switch between overall, added, and liquidated views, with optional weekly or monthly change comparison.
+- **Stock detail page:** a line chart of a stock's MTF history with a month and year range filter and a "show all history" option.
+- **Report upload:** drag in a CSV or Excel file (.csv, .xlsx, .xls). It is parsed in the browser, and the stocks and holdings are written to Supabase in batches.
+- **Upload history:** a list of every report that has been uploaded.
+- **Bulk historical import:** a Node script that loads a ZIP of past weekly reports in batches.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Tech Stack
 
-## Expanding the ESLint configuration
+| Area | Tools |
+|---|---|
+| Frontend | React 19, TypeScript, Vite |
+| Charts | Recharts |
+| File parsing | PapaParse (CSV), SheetJS (Excel), adm-zip |
+| Backend and database | Supabase (PostgreSQL) |
+| Tooling | ESLint, typescript-eslint |
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Project Structure
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+src/
+  components/   UI: Header, MetricCards, TopStockCards, MtfTable,
+                StockDetailPage, FileUpload, UploadPage, UploadHistoryPage
+  services/     Data access and calculations: dashboardService,
+                stockHistoryService, comparisonService
+  lib/          Supabase client
+scripts/
+  importHistoricalZip.mjs   Bulk import of historical reports
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Data Model
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+| Table | Purpose |
+|---|---|
+| `stocks` | One row per stock symbol |
+| `weekly_reports` | One row per uploaded report and its report date |
+| `mtf_holdings` | Holding amounts per stock per report |
+| `uploaded_files` | Record of each uploaded file |
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## Getting Started
+
+1. Clone the repository and install dependencies:
+
+   ```bash
+   git clone https://github.com/diyajh/finance-mtf-dashboard.git
+   cd finance-mtf-dashboard
+   npm install
+   ```
+
+2. Create a `.env` file in the project root with your Supabase project details:
+
+   ```
+   VITE_SUPABASE_URL=your-project-url
+   VITE_SUPABASE_ANON_KEY=your-anon-key
+   ```
+
+3. Start the development server:
+
+   ```bash
+   npm run dev
+   ```
+
+4. Optional: import historical reports from a ZIP file:
+
+   ```bash
+   node scripts/importHistoricalZip.mjs ./path/to/reports.zip
+   ```
+
+## Scripts
+
+| Command | Description |
+|---|---|
+| `npm run dev` | Start the development server |
+| `npm run build` | Type-check and build for production |
+| `npm run preview` | Preview the production build |
+| `npm run lint` | Run ESLint |
